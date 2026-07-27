@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <div th:fragment="body" th:if="${account.get(0).ACCNT_ID == '1000001'}" class="1000201">
+        <table>
+            <tbody>
+                <tr>
+                    <td class="px-4 py-2">メールアドレス</td>
+                    <td class="px-4 py-2"><input id="MAIL_ADDRESS" name="MAIL_ADDRESS" value="grandmaster@account.com"></td>
+                </tr>
+                <tr>
+                    <td class="px-4 py-2">パスワード</td>
+                    <td class="px-4 py-2"><input id="PASSWORD" type="password" name="PASSWORD" value="password"></td>
+                </tr>
+            </tbody>
+        </table>
+        <button type="button" class="btn btn-primary px-4 py-2" onclick="submitMainForm()">サインイン</button>
+    </div>
+</body>
+</html>

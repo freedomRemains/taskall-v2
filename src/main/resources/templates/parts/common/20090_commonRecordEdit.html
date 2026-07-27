@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <div th:fragment="body" class="1000801"
+         th:with="tableDefList=${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'tableDefList')},
+                  columnList=${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'columnList')},
+                  targetRecord=${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'targetRecord')},
+                  tableName=${tableDefList[0].TABLE_NAME},
+                  specialFields=${T(java.util.List).of('VERSION','IS_DELETED','CREATED_BY','CREATED_AT','UPDATED_BY','UPDATED_AT')}">
+        <div class="p-2">
+            <label>
+                <span class="form-label fw-bold"
+                      th:text="${tableDefList[0].TABLE_LOGICAL_NAME + '(' + tableDefList[0].TABLE_NAME + ')'}">table</span><br />
+            </label>
+            <table>
+                <tbody>
+                    <!--/* 新規レコード追加の場合は、サロゲートキー・共通カラムを除いた入力欄を表示する */-->
+                    <tr th:each="column : ${columnList}"
+                        th:if="${column.FIELD_NAME != tableName + '_ID' and not #lists.contains(specialFields, column.FIELD_NAME)}">
+                        <td th:text="${column.FIELD_LOGICAL_NAME}">field</td>
+                        <td><input th:id="${column.FIELD_NAME}" th:name="${column.FIELD_NAME}" size="50"></td>
+                    </tr>
+                    <!--/* レコード編集・削除の場合は、既存値を表示する
+                           (サロゲートキー・共通カラムは編集不可のため、disabled表示に加え
+                           送信対象として別途hidden項目を用意する) */-->
+                    <tr th:each="entry : ${targetRecord.isEmpty() ? {} : targetRecord[0]}">
+                        <td th:text="${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'tableDefList').?[FIELD_NAME == '__${entry.key}__'][0].FIELD_LOGICAL_NAME}">field</td>
+                        <td>
+                            <input th:id="${entry.key}" th:name="${entry.key}" th:value="${entry.value}" size="50"
+                                   th:disabled="${entry.key == tableName + '_ID' or #lists.contains(specialFields, entry.key)}">
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <th:block th:if="${not targetRecord.isEmpty()}" th:with="record=${targetRecord[0]}">
+            <input type="hidden" th:each="entry : ${record}"
+                   th:if="${entry.key == tableName + '_ID' or #lists.contains(specialFields, entry.key)}"
+                   th:name="${entry.key}" th:value="${entry.value}">
+            <!--/* サービス側(UpdateRecordService/DeleteRecordService)がrecordIdパラメータを
+                   要求するため、サロゲートキーの値をrecordIdとしても別途送信する */-->
+            <input type="hidden" name="recordId" th:value="${record.get(tableName + '_ID')}">
+        </th:block>
+        <input type="hidden" name="tableName" th:value="${tableName}">
+    </div>
+</body>
+</html>

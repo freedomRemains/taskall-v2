@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <div th:fragment="body" th:if="${account.get(0).ACCNT_ID != '1000001'}" class="1000301">
+        <div class="row m-2 gy-2">
+            <a th:each="link : ${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'linkList')}"
+               th:if="${link.URI_PATTERN != '/remainz-v2/service/error.html'}"
+               class="btn btn-primary w-100 px-4 py-2"
+               th:href="${link.IS_POST == '0'} ? ${link.URI_PATTERN} : 'javascript:void(0);'"
+               th:onclick="${link.IS_POST == '0'} ? null : 'submitMainForm()'"
+               th:text="${link.LNK_NAME}">Link</a>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,6 @@
+ACCNT_ID	ACCOUNT_NAME	MAIL_ADDRESS	PASSWORD	VERSION	IS_DELETED	CREATED_BY	CREATED_AT	UPDATED_BY	UPDATED_AT
+1000001	ゲスト	guest@account.com	password	1	0	data_loader	2021-07-12 00:00:00	data_loader	2021-07-12 00:00:00
+1000101	個人ユーザ	gnruser@account.com	password	1	0	data_loader	2021-07-12 00:00:00	data_loader	2021-07-12 00:00:00
+1000201	法人ユーザ	cmpnyuser@account.com	password	1	0	data_loader	2021-07-12 00:00:00	data_loader	2021-07-12 00:00:00
+1000301	マスタ	master@account.com	password	1	0	data_loader	2021-07-12 00:00:00	data_loader	2021-07-12 00:00:00
+1000401	グランドマスタ	grandmaster@account.com	password	1	0	data_loader	2021-07-12 00:00:00	data_loader	2021-07-12 00:00:00

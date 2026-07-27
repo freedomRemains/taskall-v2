@@ -1,0 +1,6 @@
+APROLE_ID	ROLE_NAME	VERSION	IS_DELETED	CREATED_BY	CREATED_AT	UPDATED_BY	UPDATED_AT
+1000001	ゲスト	1	0	data_loader	2021-07-12 00:00:00	data_loader	2021-07-12 00:00:00
+1000101	個人ユーザ	1	0	data_loader	2021-07-12 00:00:00	data_loader	2021-07-12 00:00:00
+1000201	法人ユーザ	1	0	data_loader	2021-07-12 00:00:00	data_loader	2021-07-12 00:00:00
+1000301	管理者(マスタ)	1	0	data_loader	2021-07-12 00:00:00	data_loader	2021-07-12 00:00:00
+1000401	特権管理者(グランドマスタ)	1	0	data_loader	2021-07-12 00:00:00	data_loader	2021-07-12 00:00:00

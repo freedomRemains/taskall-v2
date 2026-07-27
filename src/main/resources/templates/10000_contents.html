@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <link rel="stylesheet" href="/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="/css/rwstyle.css">
+    <link rel="icon" type="image/png" href="/img/favicon.png">
+    <title th:text="${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'systemName').get(0).GNR_VAL}">Remainz</title>
+</head>
+
+<body>
+    <div id="mainArea" class="container">
+        <form id="mainForm" method="POST">
+            <div th:each="part : ${htmlPage}">
+                <div th:replace="~{parts/10010_header :: wrapper(part=${part})}"></div>
+                <div th:replace="~{parts/10030_login :: wrapper(part=${part})}"></div>
+                <div th:replace="~{parts/10040_linkList :: wrapper(part=${part})}"></div>
+                <div th:replace="~{parts/10050_tableList :: wrapper(part=${part})}"></div>
+                <div th:replace="~{parts/10060_tableDefList :: wrapper(part=${part})}"></div>
+                <div th:replace="~{parts/10070_recordList :: wrapper(part=${part})}"></div>
+                <div th:replace="~{parts/10080_noticeList :: wrapper(part=${part})}"></div>
+                <div th:replace="~{parts/10090_recordEdit :: wrapper(part=${part})}"></div>
+                <div th:replace="~{parts/10100_recordRef :: wrapper(part=${part})}"></div>
+                <div th:replace="~{parts/10110_relatedTableList :: wrapper(part=${part})}"></div>
+                <div th:replace="~{parts/10120_errMsgList :: wrapper(part=${part})}"></div>
+            </div>
+        </form>
+    </div>
+    <script src="/js/bootstrap.bundle.min.js"></script>
+    <script type="text/javascript" src="/js/rwscript.js"></script>
+</body>
+
+</html>

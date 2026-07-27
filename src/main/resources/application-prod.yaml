@@ -1,0 +1,17 @@
+# 本番環境向けのSpringBoot設定。
+# アプリ独自設定(DBメンテナンスのTSV/SQL配置先など)は「custom-prod.yml」側で持つ。
+#
+# 本番も当面はSQLiteを使用する(documents/design/2000001_base_design.md参照)。
+# 将来的にMySQLへ移行する際は、本ファイルのdatasource設定のみを差し替える想定。
+spring:
+
+  # アプリ独自設定のインポート
+  config:
+    import: custom-prod.yaml
+
+  # DB接続設定
+  datasource:
+    url: ${TASKALL_DATASOURCE_URL:jdbc:sqlite:./taskallv2.db}
+    driver-class-name: org.sqlite.JDBC
+    username:
+    password:

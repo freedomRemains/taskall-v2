@@ -1,0 +1,14 @@
+# ローカル環境向けのSpringBoot設定。
+# アプリ独自設定(DBメンテナンスのTSV/SQL配置先など)は「custom-local.yml」側で持つ。
+spring:
+
+  # アプリ独自設定のインポート
+  config:
+    import: custom-local.yaml
+
+  # DB接続設定
+  datasource:
+    url: jdbc:sqlite:./taskallv2.db
+    driver-class-name: org.sqlite.JDBC
+    username:
+    password:

@@ -1,0 +1,11 @@
+# アプリ独自設定(ローカル環境)。
+# SpringBoot自体の設定は「application-local.yml」側で持つ。
+taskall:
+
+  # DBメンテナンス機能(DB構成取得/DB構成更新)関連の設定
+  dbmng:
+
+    # DB構成取得で生成するTSV/SQLファイルの配置先ディレクトリ
+    # (「src/main/resources/db/data」「db/sql」は初期シード専用のため、実行時の
+    # 読み書きにはjar内クラスパスではなく、この作業ディレクトリを使用する)
+    work-dir: ./dbmng-work

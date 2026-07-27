@@ -1,0 +1,14 @@
+HTML_PARTS_ID	PARTS_NAME	VERSION	IS_DELETED	CREATED_BY	CREATED_AT	UPDATED_BY	UPDATED_AT
+1000001	システム名	1	0	data_loader	2024-06-23 00:00:00	data_loader	2024-06-23 00:00:00
+1000002	共通ヘッダ	1	0	data_loader	2024-06-23 00:00:00	data_loader	2024-06-23 00:00:00
+1000101	システムエラー表示領域	1	0	data_loader	2024-06-23 00:00:00	data_loader	2025-03-09 00:00:00
+1000201	ログイン情報入力領域	1	0	data_loader	2024-07-07 00:00:00	data_loader	2024-07-07 00:00:00
+1000301	リンク一覧領域	1	0	data_loader	2024-07-07 00:00:00	data_loader	2024-07-07 00:00:00
+1000401	テーブル一覧領域	1	0	data_loader	2024-07-07 00:00:00	data_loader	2024-07-07 00:00:00
+1000501	テーブル定義一覧領域	1	0	data_loader	2024-08-11 00:00:00	data_loader	2024-08-11 00:00:00
+1000601	レコード一覧領域	1	0	data_loader	2024-07-07 00:00:00	data_loader	2024-07-07 00:00:00
+1000701	通知表示領域	1	0	data_loader	2024-09-01 00:00:00	data_loader	2024-09-01 00:00:00
+1000801	レコード詳細領域	1	0	data_loader	2024-09-16 00:00:00	data_loader	2024-09-16 00:00:00
+1000901	レコード詳細領域(参照)	1	0	data_loader	2024-09-23 00:00:00	data_loader	2024-10-20 00:00:00
+1001001	関連テーブル一覧	1	0	data_loader	2024-11-17 00:00:00	data_loader	2024-11-17 00:00:00
+1001101	エラーメッセージ表示領域	1	0	data_loader	2024-11-25 00:00:00	data_loader	2024-11-25 00:00:00

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!--/* relatedTableListはPARTS_ITEMのSQL問い合わせではなく、GetRelatedRecordServiceの出力JSONが
+           そのままリクエストコンテキストへマージされ、Modelのトップレベル属性として渡ってくる
+           (htmlPage配下のitemsには含まれない)ため、findRecordsではなく直接参照する */-->
+    <div th:fragment="body" class="1001001"
+         th:with="tableDataMainteUri=${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'tableDataMainteUri')[0].URI_PATTERN},
+                  editRecordUri=${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'editRecordUri')[0].URI_PATTERN}">
+        <div class="p-2">
+            <hr>
+            <label><span class="form-label fw-bold">このレコードを使用している外部テーブル</span><br /></label>
+            <!--/* 対象レコードを外部キーとして参照している他テーブルを、テーブルごとに一覧表示する */-->
+            <th:block th:each="relatedTable : ${relatedTableList}">
+                <hr>
+                <label>
+                    <a th:href="@{${tableDataMainteUri}(tableName=${relatedTable.tableName})}">
+                        <span class="form-label fw-bold"
+                              th:text="${relatedTable.tableLogicalName + '(' + relatedTable.tableName + ')'}">table</span><br />
+                    </a>
+                </label>
+                <table class="table table-bordered table-striped table-hover table-responsive text-nowrap w-auto">
+                    <thead class="table-success">
+                        <tr>
+                            <th class="px-2 py-1">
+                                <span th:text="${relatedTable.primaryKeyFieldLogicalName}">key</span><br />
+                                <span th:text="${relatedTable.primaryKeyField}">KEY</span>
+                            </th>
+                            <th class="px-2 py-1">
+                                <span th:text="${relatedTable.descFieldLogicalName}">desc</span><br />
+                                <span th:text="${relatedTable.descField}">DESC</span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="record : ${relatedTable.records}">
+                            <td class="px-2 py-1">
+                                <a th:href="@{${editRecordUri}(tableName=${relatedTable.foreignTableName}, recordId=${record.get(relatedTable.primaryKeyField)})}"
+                                   th:text="${record.get(relatedTable.primaryKeyField)}">id</a>
+                            </td>
+                            <td class="px-2 py-1" th:text="${record.get(relatedTable.descField)}">desc</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </th:block>
+        </div>
+    </div>
+</body>
+</html>

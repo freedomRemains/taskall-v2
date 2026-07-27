@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <div th:fragment="body" class="1000901"
+         th:with="tableDefList=${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'tableDefList')},
+                  targetRecord=${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'targetRecord')},
+                  tableName=${tableDefList[0].TABLE_NAME}">
+        <div class="p-2">
+            <label>
+                <span class="form-label fw-bold"
+                      th:text="${tableDefList[0].TABLE_LOGICAL_NAME + '(' + tableName + ')'}">table</span><br />
+            </label>
+            <!--/* レコード参照は全項目を編集不可(disabled)で表示するのみで、更新操作は行わない */-->
+            <table>
+                <tbody>
+                    <tr th:each="entry : ${targetRecord[0]}">
+                        <td th:text="${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'tableDefList').?[FIELD_NAME == '__${entry.key}__'][0].FIELD_LOGICAL_NAME}">field</td>
+                        <td><input th:id="${entry.key}" th:name="${entry.key}" th:value="${entry.value}" size="50" disabled></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <input type="hidden" name="tableName" th:value="${tableName}">
+        <!--/* サービス側(DeleteRecordService)がrecordIdパラメータを要求するため、
+               全項目disabledで送信されないこのフォームでも、サロゲートキーの値を
+               recordIdとして別途hiddenで送信する */-->
+        <input type="hidden" name="recordId" th:value="${targetRecord[0].get(tableName + '_ID')}">
+    </div>
+</body>
+</html>

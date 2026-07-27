@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <nav th:fragment="body" class="navbar navbar-expand-md navbar-dark bg-secondary mt-2 mb-2">
+        <a class="navbar-brand ms-2" href="#">
+            <em th:text="${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'systemName').get(0).GNR_VAL}">Remainz</em>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarMenu">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"
+                    th:each="urlLink : ${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'urlLink')}"
+                    th:if="${urlLink.URI_PATTERN != '/remainz-v2/service/error.html'}">
+                    <a class="nav-link btn btn-outline-primary ms-2 me-2" th:href="${urlLink.URI_PATTERN}"
+                       th:text="${urlLink.PAGE_NAME}">Link</a>
+                </li>
+                <li class="nav-item"><a class="nav-link" href="#" th:text="${account.get(0).ACCOUNT_NAME}">ゲスト</a></li>
+            </ul>
+        </div>
+    </nav>
+</body>
+</html>

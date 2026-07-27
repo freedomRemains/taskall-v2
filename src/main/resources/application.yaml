@@ -1,0 +1,13 @@
+# SpringBootが持つ各設定は、環境ごとの「application-[環境名].yml」側に記載する。
+# 本ファイルは環境共通の設定と、有効化する環境(プロファイル)のデフォルト値のみを持つ。
+spring:
+
+  # アプリケーション設定
+  application:
+
+    # アプリケーション名設定
+    name: taskall-v2
+
+  # 有効化する環境(プロファイル)。起動時に-Dspring.profiles.active等で上書き可能。
+  profiles:
+    active: local

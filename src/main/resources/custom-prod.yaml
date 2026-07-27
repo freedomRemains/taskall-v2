@@ -1,0 +1,12 @@
+# アプリ独自設定(本番環境)。
+# SpringBoot自体の設定は「application-prod.yml」側で持つ。
+taskall:
+
+  # DBメンテナンス機能(DB構成取得/DB構成更新)関連の設定
+  dbmng:
+
+    # DB構成取得で生成するTSV/SQLファイルの配置先ディレクトリ。
+    # 本番環境ではCI/CDにより実行可能jarが/opt/taskall-v2配下へ配置されるため、そのパス以下を
+    # デフォルトとし、環境変数での上書きも可能にする。存在しない場合は各サービスの
+    # Files.createDirectories呼び出しで自動作成される。
+    work-dir: ${TASKALL_DBMNG_WORK_DIR:/opt/taskall-v2/dbmng}

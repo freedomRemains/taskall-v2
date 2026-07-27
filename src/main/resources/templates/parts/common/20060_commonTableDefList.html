@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <div th:fragment="body" class="1000501"
+         th:with="tableDefList=${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'tableDefList')},
+                  columnList=${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'columnList')}">
+        <div class="p-2">
+            <div class="p-2">
+                <label>
+                    <span class="form-label fw-bold"
+                          th:text="${tableDefList[0].TABLE_LOGICAL_NAME + '(' + tableDefList[0].TABLE_NAME + ')'}">table</span><br />
+                </label>
+            </div>
+            <table class="table table-bordered table-striped table-hover table-responsive text-nowrap">
+                <thead class="table-success">
+                    <tr>
+                        <th class="px-1 py-0">DB項目論理名</th>
+                        <th class="px-1 py-0">DB項目物理名</th>
+                        <th class="px-1 py-0">型</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="column : ${columnList}">
+                        <td class="px-1 py-0" th:text="${column.FIELD_LOGICAL_NAME}">field</td>
+                        <td class="px-1 py-0" th:text="${column.FIELD_NAME}">FIELD</td>
+                        <td class="px-1 py-0" th:text="${column.TYPE_NAME}">TYPE</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <input type="hidden" name="tableName" th:value="${tableDefList[0].TABLE_NAME}">
+    </div>
+</body>
+</html>

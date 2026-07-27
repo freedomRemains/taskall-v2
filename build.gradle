@@ -1,0 +1,115 @@
+// プラグインの設定
+plugins {
+
+	// Javaを使用する設定
+	id 'java'
+
+	// SpringBootを使用する設定
+	id 'org.springframework.boot' version '4.1.0'
+
+	// 依存関係管理を使用する設定
+	id 'io.spring.dependency-management' version '1.1.7'
+
+	// jacocoの設定
+	id 'jacoco'
+}
+
+// グループ及びバージョンの設定
+group = 'com.freedom'
+version = '1.0.0'
+
+// Javaの設定
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+// リポジトリ設定
+repositories {
+
+	// mavenCentralを参照して資材を取得するための設定
+	mavenCentral()
+}
+
+// 依存関係の設定
+dependencies {
+
+	// JDBCを使用するための設定
+	implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+	testImplementation 'org.springframework.boot:spring-boot-starter-jdbc-test'
+
+	// メールを使用するための設定
+	implementation 'org.springframework.boot:spring-boot-starter-mail'
+	testImplementation 'org.springframework.boot:spring-boot-starter-mail-test'
+
+	// thymeleafを使用するための設定
+	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+	testImplementation 'org.springframework.boot:spring-boot-starter-thymeleaf-test'
+
+	// バリデーションを使用するための設定
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
+
+	// SpringMVCを使用するための設定
+	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
+	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+
+	// SQLiteを使うための設定
+	implementation 'org.xerial:sqlite-jdbc:3.53.2.0'
+
+	// SQLiteドライバを使用するための設定
+	runtimeOnly 'org.xerial:sqlite-jdbc'
+
+	// JUnitを使用するための設定
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// Mockitoを使用するための設定
+	testImplementation 'org.mockito:mockito-core:5.14.2'
+}
+
+// テスト設定
+tasks.named('test') {
+
+	// JUnitを使う設定
+	useJUnitPlatform()
+
+	// Mockitoの内部モック生成(Byte Buddyによるバイトコード操作)を、実行時アタッチではなく
+	// javaagentとして起動時に読み込む設定(コンテナ環境等、実行時アタッチが許可されない場合の対策)
+	doFirst {
+		def mockitoJar = configurations.testRuntimeClasspath.files
+				.find { it.name.startsWith('mockito-core') }
+		if (mockitoJar != null) {
+			jvmArgs "-javaagent:${mockitoJar}"
+		}
+	}
+
+	// テストの最後でjacocoのレポート出力を行う設定
+	finalizedBy jacocoTestReport
+}
+
+// jacocoのレポートから除外するクラスファイルを定義する
+def jacocoExcludeFiles = [
+	'**/TaskallV2Application.class'
+]
+
+// jacoco設定
+jacocoTestReport {
+
+	// テストに依存(連動)して動作するよう設定する
+	dependsOn tasks.named('test')
+
+	// HTMLレポートを出力する設定(CI/CD環境でアーティファクトとして参照する想定)
+	reports {
+		html.required = true
+	}
+
+	// mainクラスなど、単体テスト対象外のクラスを除外する
+	afterEvaluate {
+		classDirectories.setFrom(classDirectories.files.collect {
+			fileTree(
+					dir: it,
+					excludes: jacocoExcludeFiles)
+		})
+	}
+}

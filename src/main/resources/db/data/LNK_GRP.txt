@@ -1,0 +1,11 @@
+LNK_GRP_ID	LNK_GRP_NAME	VERSION	IS_DELETED	CREATED_BY	CREATED_AT	UPDATED_BY	UPDATED_AT
+1000001	共通ヘッダのリンク	1	0	data_loader	2024-08-31 00:00:00	data_loader	2024-08-31 00:00:00
+1000101	マイページのリンク	1	0	data_loader	2024-08-31 00:00:00	data_loader	2024-08-31 00:00:00
+1000201	DBメンテナンスのリンク	1	0	data_loader	2024-08-31 00:00:00	data_loader	2024-08-31 00:00:00
+1000301	DB構成更新確認のリンク	1	0	data_loader	2024-09-15 00:00:00	data_loader	2024-09-15 00:00:00
+1000401	DB構成取得確認のリンク	1	0	data_loader	2024-09-15 00:00:00	data_loader	2024-09-15 00:00:00
+1000501	新規レコード追加のリンク	1	0	data_loader	2024-09-16 00:00:00	data_loader	2024-09-16 00:00:00
+1000601	レコード削除のリンク	1	0	data_loader	2024-09-16 00:00:00	data_loader	2024-09-16 00:00:00
+1000701	レコード編集のリンク	1	0	data_loader	2024-09-16 00:00:00	data_loader	2024-09-16 00:00:00
+1000801	レコード一覧のリンク	1	0	data_loader	2024-10-20 00:00:00	data_loader	2024-10-20 00:00:00
+1000901	新規ページ追加のリンク	1	0	data_loader	2025-02-16 00:00:00	data_loader	2025-02-16 00:00:00
