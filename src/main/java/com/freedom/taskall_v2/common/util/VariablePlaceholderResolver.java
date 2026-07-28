@@ -21,7 +21,7 @@ public final class VariablePlaceholderResolver {
 
     private static final Logger logger = LoggerFactory.getLogger(VariablePlaceholderResolver.class);
 
-    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("#\\{([0-9a-zA-Z]+)\\}");
+    private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("#\\{([0-9a-zA-Z_]+)\\}");
 
     private VariablePlaceholderResolver() {
     }

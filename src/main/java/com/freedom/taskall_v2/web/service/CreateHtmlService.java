@@ -142,10 +142,18 @@ public class CreateHtmlService implements ScriptElementService {
         // SELECT結果をJSON配列へ詰め替えつつ、値側に残るプレースホルダも画面表示用に解決する
         ArrayNode records = objectMapper.createArrayNode();
         for (LinkedHashMap<String, String> record : recordList) {
+
+            // リクエスト全体のcontextに、その行自身の列値を重ね合わせた行単位のcontextを作る。
+            // これにより、URI_PATTERNにテーブル名等の行データを埋め込んだ#{TABLE_NAME}のような
+            // プレースホルダーを、行ごとに異なる値で解決できる(物理カラム名は常に大文字+アンダー
+            // バーのため、camelCase/lowerCamelCaseのcontextキーと衝突する心配はない)。
+            ObjectNode recordContext = context.deepCopy();
+            record.forEach(recordContext::put);
+
             ObjectNode recordNode = objectMapper.createObjectNode();
             for (Map.Entry<String, String> entry : record.entrySet()) {
                 recordNode.put(entry.getKey(),
-                        VariablePlaceholderResolver.resolve(entry.getValue(), context, msg));
+                        VariablePlaceholderResolver.resolve(entry.getValue(), recordContext, msg));
             }
             records.add(recordNode);
         }

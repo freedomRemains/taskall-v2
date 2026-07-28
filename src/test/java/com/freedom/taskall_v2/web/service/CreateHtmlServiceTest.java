@@ -140,6 +140,36 @@ class CreateHtmlServiceTest {
     }
 
     @Test
+    void 項目クエリの結果の別列の値を使って行単位でプレースホルダーが解決されること() {
+
+        LinkedHashMap<String, String> row = pageRow("1000303", "1000401", "テーブル一覧", "tableList",
+                "SELECT TABLE_NAME, URL_TEMPLATE FROM TBL_DEF");
+
+        when(recordQueryService.select(eq(PAGE_SQL), eq(List.of("/taskall-v2/service/dbMainte.html"))))
+                .thenReturn(new ArrayList<>(List.of(row)));
+
+        // 同じ行のTABLE_NAME列の値が、同じ行の別列に残るプレースホルダーの解決に使われることを確認する
+        LinkedHashMap<String, String> accntRecord = new LinkedHashMap<>();
+        accntRecord.put("TABLE_NAME", "ACCNT");
+        accntRecord.put("URL_TEMPLATE", "/taskall-v2/service/tableDefRef.html?tableName=#{TABLE_NAME}");
+        LinkedHashMap<String, String> tblDefRecord = new LinkedHashMap<>();
+        tblDefRecord.put("TABLE_NAME", "TBL_DEF");
+        tblDefRecord.put("URL_TEMPLATE", "/taskall-v2/service/tableDefRef.html?tableName=#{TABLE_NAME}");
+        when(recordQueryService.select(eq("SELECT TABLE_NAME, URL_TEMPLATE FROM TBL_DEF")))
+                .thenReturn(new ArrayList<>(List.of(accntRecord, tblDefRecord)));
+
+        String result = createHtmlService.execute(
+                "{\"requestKind\":\"GET\",\"requestUri\":\"/taskall-v2/service/dbMainte.html\"}");
+
+        JsonNode node = JsonMapper.builder().build().readTree(result);
+        JsonNode records = node.path("htmlPage").get(0).path("items").get(0).path("records");
+        assertThat(records.get(0).path("URL_TEMPLATE").asString())
+                .isEqualTo("/taskall-v2/service/tableDefRef.html?tableName=ACCNT");
+        assertThat(records.get(1).path("URL_TEMPLATE").asString())
+                .isEqualTo("/taskall-v2/service/tableDefRef.html?tableName=TBL_DEF");
+    }
+
+    @Test
     void リクエストURIに対応するページ定義が存在しない場合は例外がスローされること() {
 
         when(recordQueryService.select(eq(PAGE_SQL), eq(List.of("/taskall-v2/service/unknown.html"))))

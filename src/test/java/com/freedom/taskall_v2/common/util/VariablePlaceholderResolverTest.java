@@ -40,6 +40,18 @@ class VariablePlaceholderResolverTest {
     }
 
     @Test
+    void アンダーバーを含む物理カラム名のキーでもプレースホルダーが置換されること() {
+
+        ObjectNode context = objectMapper.createObjectNode();
+        context.put("TABLE_NAME", "ACCNT");
+
+        String result = VariablePlaceholderResolver.resolve(
+                "/taskall-v2/service/tableDefRef.html?tableName=#{TABLE_NAME}", context, msg);
+
+        assertThat(result).isEqualTo("/taskall-v2/service/tableDefRef.html?tableName=ACCNT");
+    }
+
+    @Test
     void 対応する値が見つからない場合はプレースホルダーがそのまま残ること() {
 
         ObjectNode context = objectMapper.createObjectNode();
