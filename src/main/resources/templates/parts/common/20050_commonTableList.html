@@ -10,12 +10,12 @@
                             th:text="${table.TABLE_LOGICAL_NAME + '(' + table.TABLE_NAME + ')'}">table</td>
                         <td class="px-2 py-1">
                             <a class="btn btn-primary px-4 py-2"
-                               th:href="@{/remainz-v2/service/tableDefRef.html(tableName=${table.TABLE_NAME})}"
+                               th:href="${table.TABLE_DEF_REF_URL}"
                                target="_blank" rel="noopener noreferrer">定義参照</a>
                         </td>
                         <td class="px-2 py-1">
                             <a class="btn btn-primary px-4 py-2"
-                               th:href="@{/remainz-v2/service/tableDataMainte.html(tableName=${table.TABLE_NAME})}">データ編集</a>
+                               th:href="${table.TABLE_DATA_MAINTE_URL}">データ編集</a>
                         </td>
                     </tr>
                 </tbody>

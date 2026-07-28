@@ -11,8 +11,7 @@
         <div class="collapse navbar-collapse" id="navbarMenu">
             <ul class="navbar-nav ms-auto">
                 <li class="nav-item"
-                    th:each="urlLink : ${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'urlLink')}"
-                    th:if="${urlLink.URI_PATTERN != '/remainz-v2/service/error.html'}">
+                    th:each="urlLink : ${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'urlLink')}">
                     <a class="nav-link btn btn-outline-primary ms-2 me-2" th:href="${urlLink.URI_PATTERN}"
                        th:text="${urlLink.PAGE_NAME}">Link</a>
                 </li>

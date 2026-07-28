@@ -4,7 +4,8 @@
 
 ## 概要
 
-本プロジェクトではAIを使ったWebアプリの実装を行います。
+本プロジェクトではAIを使ったWebアプリの実装を行います。  
+なお、当該プロジェクトは「[remainz](https://github.com/freedomRemains/remainz)」及び「[remainz-v2](https://github.com/freedomRemains/remainz-v2)」という2プロジェクトを元にしています。
 
 - AIに対して指示を出し、コーディング及びテストも原則としてAIに全て実装してもらいます。
 - 作りたいWebアプリの構成を、論理設計としてマークダウン資料としてまとめます。
@@ -32,7 +33,10 @@ documents　ドキュメント配置先フォルダ
 - documents/prompts配下には、AIに対して問い合わせた内容(プロンプト)をマークダウン形式で保存します。
 - documents/rules配下には、AIが回答した規約類をマークダウン形式で保存します。
 - AIに作ってもらう部品も原則として全てプロンプトとその回答を保存します。
-- documents/prompts配下のプロンプトの再実施という形で、再現性のある構成とします。
+    - 当該プロジェクトのコードは全てAIが生成したものです。
+    - プロンプトはissueの形で履歴になっています。
+    - 元となっているコードの経緯を確認する場合は、[remainz-v2のGitHubリポジトリ](https://github.com/freedomRemains/remainz-v2)をご参照ください。
+- documents/prompts配下のプロンプト(及びissueにある過去のプロンプト)の再実施という形で、再現性のある構成とします。
 - 陳腐化を防ぐため、documents/rules配下のAI回答内容を定期的に見直すプロンプトを別途実施します。
 - documents/rules配下の回答の最新化をAIに依頼し、それに応じてコードやテストも修正します。
 - 無料で利用できるAIだとコードやテストへの反映は手作業になりがちです。
