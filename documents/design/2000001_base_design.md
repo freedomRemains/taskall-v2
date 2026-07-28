@@ -26,7 +26,9 @@
 ## remainzについて
 
 - 「remainz」とはWebアプリ構築が可能なローコードツールの名称です。
-- 「v2」はバージョン2シリーズであることを意味します。
+    - 当該プロジェクトの元プロジェクトとなっています。
+    - 「[remainz](https://github.com/freedomRemains/remainz)」及び「[remainz-v2](https://github.com/freedomRemains/remainz-v2)」という2つの元プロジェクトが存在します。
+    - 「v2」はバージョン2シリーズであることを意味します。AIに全ての実装を任せているのは「remainz-v2」からです。
 - Webアプリに必要な構成要素をDBレコードとして用意します。
 
 ---
@@ -70,12 +72,7 @@ DBテーブルには、次の規則を設けます。
 | -------------------- | -------------------- | -------------------- |
 | GNR_GRP_ID           | INT                  | 汎用グループID       |
 | GNR_GRP_NAME         | VARCHAR(256)         | 汎用グループ名       |
-| VERSION              | INT                  | バージョン           |
-| IS_DELETED           | INT                  | 削除フラグ           |
-| CREATED_BY           | VARCHAR(128)         | 作成者               |
-| CREATED_AT           | TIMESTAMP            | 作成日時             |
-| UPDATED_BY           | VARCHAR(128)         | 更新者               |
-| UPDATED_AT           | TIMESTAMP            | 更新日時             |
+| ...                  |                      |                      |
 
 | テーブル物理名       | テーブル論理名       |
 | -------------------- | -------------------- |
@@ -88,12 +85,7 @@ DBテーブルには、次の規則を設けます。
 | GNR_VAL              | VARCHAR(256)         | 値                   |
 | GNR_GRP_ID           | INT                  | 汎用グループマスタID |
 | ORD_IN_GRP           | INT                  | グループ内順序       |
-| VERSION              | INT                  | バージョン           |
-| IS_DELETED           | INT                  | 削除フラグ           |
-| CREATED_BY           | VARCHAR(128)         | 作成者               |
-| CREATED_AT           | TIMESTAMP            | 作成日時             |
-| UPDATED_BY           | VARCHAR(128)         | 更新者               |
-| UPDATED_AT           | TIMESTAMP            | 更新日時             |
+| ...                  |                      |                      |
 
 ---
 
@@ -153,22 +145,22 @@ src/main/java/com/freedom/taskall_v2
 		util                Webアプリに固有のユーティリティ資材を配置する
 ```
 
-- 仮置きの実装となっている「TaskallV2Controller」は上記パッケージ構成に従っていませんので、移動してください。
 - なおコントローラは「TaskallV2Controller」のみとします。
     - 「URI_PATTERN」テーブルの「URI_PATTERN」フィールドの値で、@GetMappingや@PostMappingを記述します。
     - 「HTML_PAGE」テーブルの「SCR_ID_GET」や「SCR_ID_POST」が0でないものは、コントローラに記載が必要です。
-- 「TaskallV2Controller」では、DBレコードに基づいて処理を行うサービスを呼び出すのみとします。
+- 「TaskallV2Controller」ではDBレコードに基づき、業務ロジック(サービス)を実行するスクリプトを呼び出すのみとします。
     - 移植元「remainz」配下の「src/main/java/com/remainz/web/servlet/ServiceControlServlet.java」にある「controllService」が参考になります。
+    - 移植先の「taskall-v2」では「handleRequest」という処理名に変わっています。以下、実装コード例です。
 
 ```Controller
-    @GetMapping("/taskall-v2/service/top.html")
-    public String getTop(HttpServletRequest request, HttpServletResponse response, Model model) {
-        controlService(request, response, model);
+    @GetMapping("/taskall-v2/service/myPage.html")
+    public String getMyPage(HttpServletRequest request, Model model) {
+        return handleRequest(request, "GET", model);
     }
 
-    @GetMapping("/remainz/service/error.html")
-    public String getError(HttpServletRequest request, HttpServletResponse response, Model model) {
-        controlService(request, response, model);
+    @PostMapping("/taskall-v2/service/myPage.html")
+    public String postMyPage(HttpServletRequest request, Model model) {
+        return handleRequest(request, "POST", model);
     }
 (以下、略)
 ```
@@ -178,8 +170,9 @@ src/main/java/com/freedom/taskall_v2
 ## 例外処理について
 
 - 移植元となっている「remainz」の例外処理が中途半端で使いづらかったため、次の方針に変更します。
-    - 業務的なエラーは「src/main/java/com/remainz/common/exception/BusinessRuleViolationException.java」をスローします。
-    - それ以外のシステム的なエラーは「src/main/java/com/remainz/common/exception/ApplicationInternalException.java」をスローします。
+    - 業務的なエラーは「BusinessRuleViolationException」をスローします。
+    - それ以外のシステム的なエラーは「ApplicationInternalException」をスローします。
+    - 「BusinessRuleViolationException」「ApplicationInternalException」ともに、RuntimeException派生です。
     - 入力JSONに所定のパラメータがない、といったものは前者(業務的なエラー)に該当します。
     - 入力JSONにあるファイルを開いたらIOExceptionが起きた、といった場合は後者(システム的なエラー)に該当します。
     - 移植元の「remainz」では例外を読み替えないことに重きを置いてExceptionをそのままスローしていました。
