@@ -76,12 +76,15 @@ issue #7 対応。現状のマイページ(`/taskall-v2/service/myPage.html`)は
 `SecurityConfig`で以下を設定する。
 
 - `logoutUrl("/taskall-v2/service/logout.html")`
-- `logoutSuccessUrl("/taskall-v2/service/top.html")`
+- `logoutSuccessUrl("/taskall-v2/service/myPage.html")`(実装計画時にログイン画面への
+  誘導を優先する方針へ変更。当初案の`top.html`から変更した)
 - セッション無効化・認証情報クリア・Cookie削除
 
-ログイン中のみ表示される`20040_commonLinkList.html`部品に、独立した小さな
-`<form th:action="@{/taskall-v2/service/logout.html}" method="post">`
-(CSRFトークンの隠しフィールドを同梱)によるログアウトボタンを追加する。
+ログイン中のみ表示される独立した小さな`<form th:action="@{/taskall-v2/service/logout.html}"
+method="post">`(CSRFトークンの隠しフィールドを同梱)によるログアウトボタンを追加する。
+当初は`20040_commonLinkList.html`部品への追加を想定していたが、同部品は既存の
+`mainForm`内でレンダリングされ、HTMLは`<form>`の入れ子を許容しないため、実装時に
+`10000_contents.html`側で`mainForm`と兄弟要素として追加する方式に変更した。
 
 比較した他アプローチ:
 
@@ -151,7 +154,8 @@ SpringSecurity導入によりCSRF保護がデフォルトで有効化される�
    キーを発行し、`myPage.html?errMsgKey=<キー>`へリダイレクトする。
 5. ログアウト時: 独立したログアウト用フォームから`POST
    /taskall-v2/service/logout.html`を送信すると、SpringSecurityの`LogoutFilter`が
-   セッション無効化・認証情報クリアを行い、`top.html`へリダイレクトする。
+   セッション無効化・認証情報クリアを行い、`myPage.html`(ログイン画面)へリダイレクト
+   する。
 
 ## エラーハンドリング
 
@@ -180,9 +184,12 @@ SpringSecurity導入によりCSRF保護がデフォルトで有効化される�
   `AccountAuthenticationSuccessHandler`, `AccountAuthenticationFailureHandler`、
   及び各テストクラス。ログアウト用フォームのテンプレート追加。
 - 変更: `build.gradle`(`spring-boot-starter-security`追加)、
-  `TaskallV2Controller`(`postMyPage`削除)、`10000_contents.html`(CSRF隠しフィールド追加)、
-  `20040_commonLinkList.html`(ログアウトフォーム追加)、
+  `TaskallV2Controller`(`postMyPage`削除)、
+  `10000_contents.html`(CSRF隠しフィールド追加、`mainForm`と兄弟の独立した
+  ログアウトフォーム追加。`20040_commonLinkList.html`は`mainForm`内にネストされる
+  ため、`<form>`の入れ子を避けるべくこちらに配置した)、
   `src/main/resources/db/data/ACCNT.txt`(パスワードハッシュ化)、
-  `src/main/resources/db/data/HTML_PAGE.txt`(`SCR_ID_POST`を`0`に変更)。
+  `src/main/resources/db/data/HTML_PAGE.txt`(`SCR_ID_POST`を`0`に変更)、
+  `SCR.txt`/`SCR_ELM.txt`(旧POSTログイン用スクリプト定義を削除)。
 - 削除: `LoginService`及びそのテストクラス、`SCR_ELM`の該当行
   (`SCR_ELM_ID=1100251`)。

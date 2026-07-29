@@ -14,6 +14,8 @@ import org.springframework.security.core.userdetails.User;
  */
 public class AccountPrincipal extends User {
 
+    private static final long serialVersionUID = 1L;
+
     private final String accountId;
 
     public AccountPrincipal(String accountId, String mailAddress, String password) {
