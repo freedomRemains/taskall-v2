@@ -39,6 +39,11 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-jdbc'
 	testImplementation 'org.springframework.boot:spring-boot-starter-jdbc-test'
 
+	// AOP(コントローラ・SQL実行時間のログ計測)を使用するための設定
+	// SpringBoot4.xでは"spring-boot-starter-aop"が廃止され、spring-aop自体は他starter経由で
+	// 既に含まれているため、AspectJアノテーション処理に必要なaspectjweaverのみを追加する
+	implementation 'org.aspectj:aspectjweaver'
+
 	// メールを使用するための設定
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	testImplementation 'org.springframework.boot:spring-boot-starter-mail-test'

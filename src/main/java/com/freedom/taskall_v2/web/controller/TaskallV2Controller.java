@@ -168,10 +168,14 @@ public class TaskallV2Controller {
     private void logRequestInfo(HttpServletRequest request) {
 
         // リクエスト属性を収集し、サーバ内で付与された値も含めて追跡できるようにする
+        // ただしSpringFramework内部で付与される属性はログを見ても有益にならないノイズのため除外する
         StringBuilder log = new StringBuilder();
         log.append("[Attributes]").append(System.lineSeparator());
         for (Enumeration<String> names = request.getAttributeNames(); names.hasMoreElements();) {
             String name = names.nextElement();
+            if (name.contains("springframework")) {
+                continue;
+            }
             log.append('\t').append(name).append(": ").append(request.getAttribute(name))
                     .append(System.lineSeparator());
         }
