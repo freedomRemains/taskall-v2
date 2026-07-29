@@ -1,5 +1,6 @@
 package com.freedom.taskall_v2.web.controller;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -8,6 +9,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
+import java.util.List;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -16,6 +21,10 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import com.freedom.taskall_v2.common.util.MsgUtil;
 import com.freedom.taskall_v2.web.service.RequestHandlingService;
+
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 /**
  * {@link TaskallV2Controller}のテストです。
@@ -31,6 +40,43 @@ class TaskallV2ControllerTest {
 
     @MockitoBean
     private MsgUtil msg;
+
+    private ListAppender<ILoggingEvent> listAppender;
+
+    @BeforeEach
+    void setUp() {
+        listAppender = new ListAppender<>();
+        listAppender.start();
+        ((Logger) org.slf4j.LoggerFactory.getLogger(TaskallV2Controller.class)).addAppender(listAppender);
+    }
+
+    @AfterEach
+    void tearDown() {
+        ((Logger) org.slf4j.LoggerFactory.getLogger(TaskallV2Controller.class)).detachAppender(listAppender);
+    }
+
+    @Test
+    void SpringFramework関連のリクエスト属性はAttributesログから除外されること() throws Exception {
+
+        when(requestHandlingService.execute(anyString()))
+                .thenReturn("{\"respKind\":\"redirect\",\"destination\":\"top.html\"}");
+
+        mockMvc.perform(get("/taskall-v2/service/top.html")
+                        .requestAttr("org.springframework.web.servlet.HandlerMapping.bestMatchingPattern",
+                                "/taskall-v2/service/top.html")
+                        .requestAttr("customAttribute", "customValue"))
+                .andExpect(status().is3xxRedirection());
+
+        List<ILoggingEvent> events = listAppender.list;
+        String attributesLog = events.stream()
+                .map(ILoggingEvent::getFormattedMessage)
+                .filter(message -> message.contains("[Attributes]"))
+                .findFirst()
+                .orElseThrow();
+
+        assertThat(attributesLog).doesNotContain("springframework");
+        assertThat(attributesLog).contains("customAttribute: customValue");
+    }
 
     @Test
     void トップページのGETリクエストで応答種別forwardの場合はビュー名が拡張子無しで解決されること() throws Exception {
