@@ -79,6 +79,17 @@ class TsvTableFileReaderTest {
         assertThat(records).hasSize(1);
     }
 
+    @Test
+    void マーカー文字列はCRとLFとタブへ復元されること() {
+
+        InputStream inputStream = toInputStream("ID\tNAME\n1\ta#Yr#b#Yn#c#Yt#d\n");
+
+        ArrayList<LinkedHashMap<String, String>> records = tsvTableFileReader.read(inputStream);
+
+        assertThat(records.get(0)).containsExactly(java.util.Map.entry("ID", "1"),
+                java.util.Map.entry("NAME", "a\rb\nc\td"));
+    }
+
     private InputStream toInputStream(String content) {
         return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
     }
