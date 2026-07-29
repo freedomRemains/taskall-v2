@@ -58,11 +58,6 @@ public class TaskallV2Controller {
         return handleRequest(request, "GET", model);
     }
 
-    @PostMapping("/taskall-v2/service/myPage.html")
-    public String postMyPage(HttpServletRequest request, Model model) {
-        return handleRequest(request, "POST", model);
-    }
-
     // 以下、DBメンテナンス機能の画面群。いずれもDBレコード駆動の汎用処理(handleRequest)へ
     // 委譲するのみで、画面固有の業務ロジックはコントローラ側に持たない
     @GetMapping("/taskall-v2/service/dbMainte.html")
