@@ -11,6 +11,7 @@
 <body>
     <div id="mainArea" class="container">
         <form id="mainForm" method="POST">
+            <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
             <div th:each="part : ${htmlPage}">
                 <div th:replace="~{parts/10010_header :: wrapper(part=${part})}"></div>
                 <div th:replace="~{parts/10030_login :: wrapper(part=${part})}"></div>
@@ -24,6 +25,11 @@
                 <div th:replace="~{parts/10110_relatedTableList :: wrapper(part=${part})}"></div>
                 <div th:replace="~{parts/10120_errMsgList :: wrapper(part=${part})}"></div>
             </div>
+        </form>
+        <form th:if="${account.get(0).ACCNT_ID != '1000001'}" method="POST"
+              th:action="@{/taskall-v2/service/logout.html}" class="mt-2">
+            <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
+            <button type="submit" class="btn btn-outline-secondary">ログアウト</button>
         </form>
     </div>
     <script src="/js/bootstrap.bundle.min.js"></script>
