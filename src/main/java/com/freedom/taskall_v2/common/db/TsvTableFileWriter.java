@@ -36,17 +36,29 @@ import com.freedom.taskall_v2.common.util.MsgUtil;
  * {@code null}と空文字列を区別できるようにするためです。この文字列{@code "null"}は
  * {@link InsertSqlBuilder}が読み取り、INSERT文生成時に{@code NULL}として扱います。
  * </p>
+ *
+ * <p>
+ * 各値は書き出す前に{@link TsvValueEscaper#encode(String)}へ通し、CR/LF/タブをマーカー文字列へ
+ * 変換します。TSVはタブ区切り・改行区切りの形式のため、値自体にこれらの文字が含まれると
+ * パースが破綻するのを防ぐためです。
+ * </p>
  */
 public class TsvTableFileWriter {
 
     private final MsgUtil msg;
+    private final TsvValueEscaper tsvValueEscaper;
 
     public TsvTableFileWriter() {
         this(new MsgUtil());
     }
 
     public TsvTableFileWriter(MsgUtil msg) {
+        this(msg, new TsvValueEscaper(msg));
+    }
+
+    public TsvTableFileWriter(MsgUtil msg, TsvValueEscaper tsvValueEscaper) {
         this.msg = msg;
+        this.tsvValueEscaper = tsvValueEscaper;
     }
 
     /**
@@ -103,9 +115,11 @@ public class TsvTableFileWriter {
     private void writeRows(BufferedWriter writer, List<? extends Map<String, String>> rows) throws IOException {
         for (Map<String, String> row : rows) {
             // nullを空文字列にしてしまうと、実際の空文字列の値と区別できなくなるため、
-            // 文字列"null"として書き出す(InsertSqlBuilderが読み取りNULLへ変換する)
+            // 文字列"null"として書き出す(InsertSqlBuilderが読み取りNULLへ変換する)。
+            // その後、CR/LF/タブがTSVのパースを壊さないよう、値ごとにエスケープする。
             writer.write(String.join("\t", row.values().stream()
                     .map(value -> value == null ? "null" : value)
+                    .map(tsvValueEscaper::encode)
                     .toList()));
             writer.newLine();
         }
