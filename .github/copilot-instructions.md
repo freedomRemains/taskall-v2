@@ -124,6 +124,26 @@ read/edit 制御は `HTML_PARTS_IN_APROLE` で管理し、`AuthUtil.hasEditAuth(
 - そのため、DBデータ（`DESTINATION_GET`等）・コントローラ側のビュー名解決処理
   （`TaskallV2Controller`）ともに、拡張子は `.jsp` ではなく `.html` を前提として実装・移植する。
 
+## 画面デザイン・配色の方針（issue #9「デザインの改善」対応）
+
+- 画面デザインは引き続きBootstrap（`src/main/resources/static/css/bootstrap.min.css`）を使用し、
+  レスポンシブデザインを維持する。ただしDBメンテナンス系画面（テーブル定義参照・データ編集・
+  レコード参照など）は、PCでの利用を主目的とするため、無理にレスポンシブ対応しなくてよい。
+- 配色は個別のHTML要素へ`style`属性や固有クラスでベタ書きせず、
+  `src/main/resources/static/css/rwstyle.css`の`:root`ブロックでBootstrap 5.3の
+  CSSカスタムプロパティ（`--bs-primary`等）を上書きする方式に統一する。これにより、
+  画面全体の色味を変更したい場合は`rwstyle.css`の変数上書きを直すだけで済み、
+  各テンプレート側は`btn-primary`/`bg-primary`のような標準クラスのみを使い続ければよい。
+- 共通ヘッダ（`20010_commonHeader.html`）は灰色(`bg-secondary`)ではなくテーマカラー
+  (`bg-primary`)を使用する。「TOP」「マイページ」等のリンクは`btn-outline-light rounded-pill`
+  でタブ風の見た目にし、単なるラベルとリンクが区別しづらい状態を避ける。
+- ログイン画面（`20030_commonLogin.html`）のような入力フォームは、`row justify-content-center`
+  ＋`col-md-*`で中央寄せし、`card`＋`form-label`/`form-control`を用いた縦積みレイアウトとする。
+- マイページ等のボタン一覧（`20040_commonLinkList.html`等）は、`btn w-100`で単純に縦に
+  並べるのではなく、`row row-cols-1 row-cols-md-2 g-3`のようなグリッドでカード状に整列させる。
+- DBメンテナンス系のtable要素は、`table-responsive`でラップした上で`w-auto`とし、
+  `d-flex justify-content-center`で中央寄せする（レスポンシブ対応は不要だが、中央寄せは行う）。
+
 ## ログメッセージの管理方針（PR #10 レビュー指摘）
 
 - `ERROR`/`WARN`レベルでログ出力する文字列は、直接記述せず

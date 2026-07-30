@@ -6,8 +6,9 @@
              th:if="${not #lists.isEmpty(T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'errMsgList'))}">
             <div th:each="errMsg : ${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'errMsgList')}">
                 <!-- ERR_MSGはGNR_KEY_VAL(管理者投入のマスタデータ)を由来とする固定文言であり、
-                     改行を<br />で埋め込んでいるため、th:textではなくth:utextでエスケープせず出力する -->
-                <span style="color:red;" th:utext="${errMsg.ERR_MSG}">Error</span>
+                     改行を<br />で埋め込んでいるため、th:textではなくth:utextでエスケープせず出力する。
+                     色指定はstyle属性へのベタ書きを避け、Bootstrap標準のtext-dangerクラスを用いる */-->
+                <span class="text-danger fw-semibold" th:utext="${errMsg.ERR_MSG}">Error</span>
             </div>
         </div>
     </div>

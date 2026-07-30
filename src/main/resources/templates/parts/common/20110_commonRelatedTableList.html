@@ -19,29 +19,31 @@
                               th:text="${relatedTable.tableLogicalName + '(' + relatedTable.tableName + ')'}">table</span><br />
                     </a>
                 </label>
-                <table class="table table-bordered table-striped table-hover table-responsive text-nowrap w-auto">
-                    <thead class="table-success">
-                        <tr>
-                            <th class="px-2 py-1">
-                                <span th:text="${relatedTable.primaryKeyFieldLogicalName}">key</span><br />
-                                <span th:text="${relatedTable.primaryKeyField}">KEY</span>
-                            </th>
-                            <th class="px-2 py-1">
-                                <span th:text="${relatedTable.descFieldLogicalName}">desc</span><br />
-                                <span th:text="${relatedTable.descField}">DESC</span>
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr th:each="record : ${relatedTable.records}">
-                            <td class="px-2 py-1">
-                                <a th:href="@{${editRecordUri}(tableName=${relatedTable.foreignTableName}, recordId=${record.get(relatedTable.primaryKeyField)})}"
-                                   th:text="${record.get(relatedTable.primaryKeyField)}">id</a>
-                            </td>
-                            <td class="px-2 py-1" th:text="${record.get(relatedTable.descField)}">desc</td>
-                        </tr>
-                    </tbody>
-                </table>
+                <div class="d-flex justify-content-center">
+                    <table class="table table-bordered table-striped table-hover table-responsive text-nowrap w-auto">
+                        <thead class="table-primary">
+                            <tr>
+                                <th class="px-2 py-1">
+                                    <span th:text="${relatedTable.primaryKeyFieldLogicalName}">key</span><br />
+                                    <span th:text="${relatedTable.primaryKeyField}">KEY</span>
+                                </th>
+                                <th class="px-2 py-1">
+                                    <span th:text="${relatedTable.descFieldLogicalName}">desc</span><br />
+                                    <span th:text="${relatedTable.descField}">DESC</span>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="record : ${relatedTable.records}">
+                                <td class="px-2 py-1">
+                                    <a th:href="@{${editRecordUri}(tableName=${relatedTable.foreignTableName}, recordId=${record.get(relatedTable.primaryKeyField)})}"
+                                       th:text="${record.get(relatedTable.primaryKeyField)}">id</a>
+                                </td>
+                                <td class="px-2 py-1" th:text="${record.get(relatedTable.descField)}">desc</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
             </th:block>
         </div>
     </div>
