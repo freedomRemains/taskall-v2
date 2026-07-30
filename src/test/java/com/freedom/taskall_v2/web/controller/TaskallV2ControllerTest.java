@@ -122,20 +122,6 @@ class TaskallV2ControllerTest {
     }
 
     @Test
-    void マイページのPOSTリクエストで応答種別redirectの場合はredirectプレフィックス付きのビュー名が返却されること()
-            throws Exception {
-
-        when(requestHandlingService.execute(anyString()))
-                .thenReturn("{\"respKind\":\"redirect\",\"destination\":\"myPage.html?errMsgKey=5\"}");
-
-        mockMvc.perform(post("/taskall-v2/service/myPage.html")
-                        .param("MAIL_ADDRESS", "wrong@account.com")
-                        .param("PASSWORD", "wrong"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(view().name("redirect:myPage.html?errMsgKey=5"));
-    }
-
-    @Test
     void テーブルデータメンテナンス画面のPOSTリクエストで一括削除が実行されビュー名が解決されること() throws Exception {
 
         when(requestHandlingService.execute(anyString())).thenReturn(

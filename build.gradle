@@ -60,6 +60,10 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 
+	// SpringSecurityを使用するための設定
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	testImplementation 'org.springframework.security:spring-security-test'
+
 	// SQLiteを使うための設定
 	implementation 'org.xerial:sqlite-jdbc:3.53.2.0'
 

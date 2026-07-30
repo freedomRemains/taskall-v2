@@ -16,6 +16,9 @@
                        th:text="${urlLink.PAGE_NAME}">Link</a>
                 </li>
                 <li class="nav-item"><a class="nav-link" href="#" th:text="${account.get(0).ACCOUNT_NAME}">ゲスト</a></li>
+                <li class="nav-item" th:if="${account.get(0).ACCNT_ID != '1000001'}">
+                    <button type="submit" form="logoutForm" class="btn btn-outline-primary ms-2 me-2">ログアウト</button>
+                </li>
             </ul>
         </div>
     </nav>

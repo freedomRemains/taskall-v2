@@ -38,8 +38,8 @@ class DbInitializationServiceTest {
 
         dbInitializationService.initializeDatabase();
 
-        // 22テーブル分のDROP・CREATEと、データファイルが存在するテーブル分(673レコード)のINSERTが実行される
-        // (テーブル一覧の定義参照/データ編集リンクをURI_PATTERN経由に統一したため、URI_PATTERNが2件増え671から673へ変更)
-        verify(jdbcTemplate, times(22 + 22 + 673)).execute(anyString());
+        // 22テーブル分のDROP・CREATEと、データファイルが存在するテーブル分(669レコード)のINSERTが実行される
+        // (旧LoginService削除により、SCRテーブルから1レコード、SCR_ELMテーブルから3レコード削除したため673から669へ変更)
+        verify(jdbcTemplate, times(22 + 22 + 669)).execute(anyString());
     }
 }
