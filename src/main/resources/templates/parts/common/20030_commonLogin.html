@@ -1,20 +1,27 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
-    <div th:fragment="body" th:if="${account.get(0).ACCNT_ID == '1000001'}" class="1000201">
-        <table>
-            <tbody>
-                <tr>
-                    <td class="px-4 py-2">メールアドレス</td>
-                    <td class="px-4 py-2"><input id="MAIL_ADDRESS" name="MAIL_ADDRESS" value="grandmaster@account.com"></td>
-                </tr>
-                <tr>
-                    <td class="px-4 py-2">パスワード</td>
-                    <td class="px-4 py-2"><input id="PASSWORD" type="password" name="PASSWORD" value="password"></td>
-                </tr>
-            </tbody>
-        </table>
-        <button type="button" class="btn btn-primary px-4 py-2" onclick="submitMainForm()">サインイン</button>
+    <!--/* ゲストのマイページ表示時のログイン画面。共通ヘッダとの間に余白(my-5)を空け、
+           入力欄・サインインボタンを画面中央(col-md-4 mx-auto)に寄せる構成へ変更する */-->
+    <div th:fragment="body" th:if="${account.get(0).ACCNT_ID == '1000001'}" class="1000201 row justify-content-center my-5">
+        <div class="col-12 col-md-5 col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h1 class="h5 card-title text-center mb-4">ログイン</h1>
+                    <div class="mb-3">
+                        <label for="MAIL_ADDRESS" class="form-label">メールアドレス</label>
+                        <input id="MAIL_ADDRESS" name="MAIL_ADDRESS" class="form-control" value="grandmaster@account.com">
+                    </div>
+                    <div class="mb-4">
+                        <label for="PASSWORD" class="form-label">パスワード</label>
+                        <input id="PASSWORD" type="password" name="PASSWORD" class="form-control" value="password">
+                    </div>
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-primary" onclick="submitMainForm()">サインイン</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </body>
 </html>

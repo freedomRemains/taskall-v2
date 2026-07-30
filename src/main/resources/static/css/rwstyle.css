@@ -1,0 +1,26 @@
+/*
+ * taskall-v2 独自のテーマ定義。
+ * Bootstrapのビルド(SCSS)を再構築せず、Bootstrap 5.3のCSSカスタムプロパティ(--bs-*)を
+ * この:rootブロックで上書きするだけで、画面全体の色味を一括変更できるようにする。
+ * 各テンプレート側は個別に色をベタ書きせず、btn-primary/bg-primary等の標準クラスのみを
+ * 使用する方針とし、配色の変更は今後もこのファイルの変数上書きだけで完結させる。
+ */
+:root {
+    --bs-primary: #2952a3;
+    --bs-primary-rgb: 41, 82, 163;
+    --bs-primary-text-emphasis: #16305e;
+    --bs-primary-bg-subtle: #dbe6f7;
+    --bs-primary-border-subtle: #b0c8ec;
+    --bs-body-bg: #f5f7fa;
+    --bs-link-color: var(--bs-primary);
+    --bs-link-hover-color: var(--bs-primary-text-emphasis);
+}
+
+/*
+ * ナビタブ(nav-pills)の選択中背景色も、上記--bs-primaryへ連動させる。
+ * Bootstrap標準の--bs-nav-pills-link-active-bgは--bs-primaryと独立した変数のため、
+ * ここで明示的に紐付けておくことで、テーマカラー変更時にタブの見た目もずれないようにする。
+ */
+.nav-pills {
+    --bs-nav-pills-link-active-bg: var(--bs-primary);
+}
