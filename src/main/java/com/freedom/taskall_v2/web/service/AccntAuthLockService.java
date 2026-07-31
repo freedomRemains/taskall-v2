@@ -70,9 +70,14 @@ public class AccntAuthLockService {
         return true;
     }
 
-    /** 認証失敗を記録します。失敗回数が上限に達した場合はロック解除予定時刻を設定します。 */
+    /**
+     * 認証失敗を記録します。失敗回数の加算とロック判定をDBの1つのUPDATE文で完結させることで、
+     * 並行呼び出しによるロストアップデートを防ぎます。失敗回数が上限に達した場合はロック解除
+     * 予定時刻を設定します。
+     */
     public void recordFailure(String accountId) {
 
+        // 行が存在しない場合は初回失敗として新規挿入する
         Optional<LinkedHashMap<String, String>> row = findRow(accountId);
         if (row.isEmpty()) {
             String currentDate = LocalDateTime.now().format(DATE_FORMAT);
@@ -84,16 +89,14 @@ public class AccntAuthLockService {
             return;
         }
 
-        int failCount = Integer.parseInt(row.get().get("FAIL_CNT")) + 1;
-        if (failCount >= MAX_FAIL_COUNT) {
-            String lockedUntil = LocalDateTime.now().plusMinutes(15).format(DATE_FORMAT);
-            jdbcTemplate.update(
-                    "UPDATE ACCNT_AUTH_LOCK SET FAIL_CNT = ?, LOCKED_UNTIL = ? WHERE ACCNT_AUTH_LOCK_ID = ?",
-                    failCount, lockedUntil, row.get().get("ACCNT_AUTH_LOCK_ID"));
-        } else {
-            jdbcTemplate.update("UPDATE ACCNT_AUTH_LOCK SET FAIL_CNT = ? WHERE ACCNT_AUTH_LOCK_ID = ?",
-                    failCount, row.get().get("ACCNT_AUTH_LOCK_ID"));
-        }
+        // 失敗回数の加算とロック判定を1つのUPDATE文で行う。SET句のFAIL_CNT+1はDB側で評価されるため、
+        // 並行する複数のUPDATEが互いに上書きし合うロストアップデートが発生しない。
+        String lockedUntil = LocalDateTime.now().plusMinutes(15).format(DATE_FORMAT);
+        jdbcTemplate.update(
+                "UPDATE ACCNT_AUTH_LOCK SET FAIL_CNT = FAIL_CNT + 1, "
+                + "LOCKED_UNTIL = CASE WHEN FAIL_CNT + 1 >= ? THEN ? ELSE LOCKED_UNTIL END "
+                + "WHERE ACCNT_AUTH_LOCK_ID = ?",
+                MAX_FAIL_COUNT, lockedUntil, row.get().get("ACCNT_AUTH_LOCK_ID"));
     }
 
     /** 認証成功時に失敗回数・ロック状態をクリアします(行が無ければ何もしません)。 */

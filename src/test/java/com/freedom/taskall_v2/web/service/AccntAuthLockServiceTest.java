@@ -79,7 +79,7 @@ class AccntAuthLockServiceTest {
     }
 
     @Test
-    void 失敗回数が5に達するとロック解除予定時刻が設定されること() {
+    void 失敗回数が5に達するとアトミックUPDATEでロック解除予定時刻が設定されること() {
 
         LinkedHashMap<String, String> row = new LinkedHashMap<>();
         row.put("ACCNT_AUTH_LOCK_ID", "1");
@@ -91,7 +91,29 @@ class AccntAuthLockServiceTest {
         accntAuthLockService.recordFailure("1000001");
 
         verify(jdbcTemplate).update(
-                eq("UPDATE ACCNT_AUTH_LOCK SET FAIL_CNT = ?, LOCKED_UNTIL = ? WHERE ACCNT_AUTH_LOCK_ID = ?"),
+                eq("UPDATE ACCNT_AUTH_LOCK SET FAIL_CNT = FAIL_CNT + 1, "
+                        + "LOCKED_UNTIL = CASE WHEN FAIL_CNT + 1 >= ? THEN ? ELSE LOCKED_UNTIL END "
+                        + "WHERE ACCNT_AUTH_LOCK_ID = ?"),
+                eq(5), any(String.class), eq("1"));
+    }
+
+    @Test
+    void 失敗回数が上限未満の場合もアトミックUPDAT文が使用されること() {
+
+        LinkedHashMap<String, String> row = new LinkedHashMap<>();
+        row.put("ACCNT_AUTH_LOCK_ID", "1");
+        row.put("FAIL_CNT", "2");
+        row.put("LOCKED_UNTIL", null);
+        when(recordQueryService.select(eq(FIND_SQL), eq(List.of("1000001"))))
+                .thenReturn(new ArrayList<>(List.of(row)));
+
+        accntAuthLockService.recordFailure("1000001");
+
+        // 上限未満でも同じSQL文が使われる（CASEのELSEブランチでLOCKED_UNTILは変化しない）
+        verify(jdbcTemplate).update(
+                eq("UPDATE ACCNT_AUTH_LOCK SET FAIL_CNT = FAIL_CNT + 1, "
+                        + "LOCKED_UNTIL = CASE WHEN FAIL_CNT + 1 >= ? THEN ? ELSE LOCKED_UNTIL END "
+                        + "WHERE ACCNT_AUTH_LOCK_ID = ?"),
                 eq(5), any(String.class), eq("1"));
     }
 
