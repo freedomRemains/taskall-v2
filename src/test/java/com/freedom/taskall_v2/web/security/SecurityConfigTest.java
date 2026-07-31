@@ -33,22 +33,12 @@ class SecurityConfigTest {
     @Test
     void 正しいメールアドレスとパスワードでログインするとマイページへリダイレクトされること() throws Exception {
 
-        // NOTE: Task 7時点では一次認証通過後にTwoFactorRequiredExceptionがスローされるが、
-        // AccountAuthenticationFailureHandlerがまだこの例外型を判別していないため、
-        // 汎用エラーとして扱われエラーメッセージキー付きでmyPage.htmlへリダイレクトされる。
-        // Task 8でAccountAuthenticationFailureHandlerがTwoFactorRequiredExceptionを
-        // 判別するよう改修されると、パスコード入力画面へのリダイレクトに変わる。
         mockMvc.perform(post("/taskall-v2/service/myPage.html")
                         .with(csrf())
                         .param("MAIL_ADDRESS", "guest@account.com")
                         .param("PASSWORD", "password"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(result -> {
-                    String redirectedUrl = result.getResponse().getRedirectedUrl();
-                    // Task 7時点ではTwoFactorRequiredExceptionが汎用エラー扱いされる
-                    org.assertj.core.api.Assertions.assertThat(redirectedUrl)
-                            .startsWith("myPage.html?errMsgKey=");
-                });
+                .andExpect(redirectedUrl("/taskall-v2/service/twoFactorAuth.html"));
     }
 
     @Test
