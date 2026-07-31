@@ -4,8 +4,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
@@ -25,11 +23,14 @@ public class SecurityConfig {
 
     private final AccountAuthenticationSuccessHandler successHandler;
     private final AccountAuthenticationFailureHandler failureHandler;
+    private final TwoPhaseAuthenticationProvider twoPhaseAuthenticationProvider;
 
     public SecurityConfig(AccountAuthenticationSuccessHandler successHandler,
-            AccountAuthenticationFailureHandler failureHandler) {
+            AccountAuthenticationFailureHandler failureHandler,
+            TwoPhaseAuthenticationProvider twoPhaseAuthenticationProvider) {
         this.successHandler = successHandler;
         this.failureHandler = failureHandler;
+        this.twoPhaseAuthenticationProvider = twoPhaseAuthenticationProvider;
     }
 
     @Bean
@@ -39,6 +40,10 @@ public class SecurityConfig {
                 // 認可判定は既存のAuthUtil(HTML_PARTS_IN_APROLE)に委ねるため、SpringSecurity側では
                 // 全リクエストを許可する
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                // メールアドレス・パスワードの照合およびロック判定・二段階認証の起動は、
+                // SpringBoot自動構成のDaoAuthenticationProviderではなく本クラス専用の
+                // TwoPhaseAuthenticationProviderへ明示的に委譲する
+                .authenticationProvider(twoPhaseAuthenticationProvider)
                 // ログイン画面/処理は既存のマイページ(POST)のURLをそのまま流用する
                 .formLogin(form -> form
                         .loginPage(LOGIN_PAGE_URL)
@@ -53,10 +58,5 @@ public class SecurityConfig {
                         .logoutSuccessUrl(LOGIN_PAGE_URL));
 
         return http.build();
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
     }
 }
