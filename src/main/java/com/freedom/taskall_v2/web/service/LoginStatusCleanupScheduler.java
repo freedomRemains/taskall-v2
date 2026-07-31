@@ -25,8 +25,17 @@ public class LoginStatusCleanupScheduler {
         this.loginStatusService = loginStatusService;
     }
 
-    /** 10分間隔で、有効期限切れのLOGIN_STATUS行を一括削除する。 */
-    @Scheduled(fixedRate = 10 * 60 * 1000)
+    /**
+     * 10分間隔で、有効期限切れのLOGIN_STATUS行を一括削除する。
+     *
+     * <p>
+     * {@code initialDelay}を設けず起動直後に実行すると、DB未初期化状態
+     * （{@code DbInitializer}によるテーブル作成が完了する前）のアプリ起動時に
+     * 本処理が先に走り、LOGIN_STATUSテーブル不在エラーになる競合が発生し得るため、
+     * 初回実行も{@code fixedRate}と同じ間隔だけ遅延させる。
+     * </p>
+     */
+    @Scheduled(initialDelay = 10 * 60 * 1000, fixedRate = 10 * 60 * 1000)
     public void cleanupExpiredLoginStatus() {
         int deletedCount = loginStatusService.deleteExpired();
         logger.info("期限切れのLOGIN_STATUS行を削除しました。deletedCount={}", deletedCount);
