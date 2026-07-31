@@ -53,6 +53,39 @@ class CreateTableSqlBuilderTest {
                 com.freedom.taskall_v2.common.exception.BusinessRuleViolationException.class, executable);
     }
 
+    @Test
+    void EXTRA列にUNIQUE記法がある場合は複合UNIQUE制約が末尾に出力されること() {
+
+        List<Map<String, String>> columnDefs = List.of(
+                buildColumnDefWithExtra("ID", "INT", "NO", "PRI", "null", "AUTO_INCREMENT"),
+                buildColumnDefWithExtra("ACCNT_ID", "INT", "YES", "", "null", "UNIQUE_1_1"),
+                buildColumnDefWithExtra("SESSION_ID", "VARCHAR(256)", "YES", "", "null", "UNIQUE_1_2"));
+
+        String sql = createTableSqlBuilder.build("SAMPLE", columnDefs);
+
+        assertThat(sql).isEqualTo("CREATE TABLE IF NOT EXISTS SAMPLE (\n"
+                + "    ID INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+                + "    ACCNT_ID INT,\n"
+                + "    SESSION_ID VARCHAR(256),\n"
+                + "    UNIQUE (ACCNT_ID, SESSION_ID)\n"
+                + ");");
+    }
+
+    @Test
+    void EXTRA列が空の場合はUNIQUE制約が出力されないこと() {
+
+        List<Map<String, String>> columnDefs = List.of(
+                buildColumnDefWithExtra("ID", "INT", "NO", "PRI", "null", "AUTO_INCREMENT"),
+                buildColumnDefWithExtra("NAME", "TEXT", "YES", "", "null", ""));
+
+        String sql = createTableSqlBuilder.build("SAMPLE", columnDefs);
+
+        assertThat(sql).isEqualTo("CREATE TABLE IF NOT EXISTS SAMPLE (\n"
+                + "    ID INTEGER PRIMARY KEY AUTOINCREMENT,\n"
+                + "    NAME TEXT\n"
+                + ");");
+    }
+
     private Map<String, String> buildColumnDef(String fieldName, String typeName, String allowNull, String keyDiv,
             String defaultValue) {
         Map<String, String> columnDef = new LinkedHashMap<>();
@@ -61,6 +94,13 @@ class CreateTableSqlBuilderTest {
         columnDef.put("ALLOW_NULL", allowNull);
         columnDef.put("KEY_DIV", keyDiv);
         columnDef.put("DEFAULT_VALUE", defaultValue);
+        return columnDef;
+    }
+
+    private Map<String, String> buildColumnDefWithExtra(String fieldName, String typeName, String allowNull,
+            String keyDiv, String defaultValue, String extra) {
+        Map<String, String> columnDef = buildColumnDef(fieldName, typeName, allowNull, keyDiv, defaultValue);
+        columnDef.put("EXTRA", extra);
         return columnDef;
     }
 }
