@@ -21,6 +21,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import com.freedom.taskall_v2.web.service.TwoFactorMailService;
 import com.freedom.taskall_v2.web.service.TwoFactorMailServiceTestConfig;
 
+/**
+ * ローカルプロファイル(デフォルトの有効プロファイル)における認証/認可の挙動を検証するテスト
+ * クラスです。ローカルプロファイルではCSRF対策を無効化するため(issue #13)、CSRF対策が有効な
+ * 本番相当の挙動は{@link SecurityConfigProdProfileTest}で検証する。
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Import(TwoFactorMailServiceTestConfig.class)
@@ -95,11 +100,14 @@ class SecurityConfigTest {
     }
 
     @Test
-    void CSRFトークンなしでログインを試みると403が返却されること() throws Exception {
+    void ローカルプロファイルではCSRFトークンなしでログインしてもリダイレクトされること() throws Exception {
 
+        // issue #13: ローカルプロファイルはデバッグ効率化のためCSRF対策を無効化しているため、
+        // CSRFトークン無しのPOSTでも403にならず通常通り処理されることを確認する
         mockMvc.perform(post("/taskall-v2/service/myPage.html")
                         .param("MAIL_ADDRESS", "guest@account.com")
                         .param("PASSWORD", "password"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/taskall-v2/service/twoFactorAuth.html"));
     }
 }
