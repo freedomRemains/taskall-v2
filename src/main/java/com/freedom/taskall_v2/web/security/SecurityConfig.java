@@ -2,6 +2,8 @@ package com.freedom.taskall_v2.web.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
@@ -33,8 +35,32 @@ public class SecurityConfig {
         this.twoPhaseAuthenticationProvider = twoPhaseAuthenticationProvider;
     }
 
+    /**
+     * {@link TwoPhaseAuthenticationProvider}のみを保持する(親{@link AuthenticationManager}を
+     * 持たない){@link ProviderManager}を明示的に生成します。
+     *
+     * <p>
+     * {@code TwoPhaseAuthenticationProvider}が{@code @Component}であるため、SpringBootの
+     * 自動構成によって「Global AuthenticationManager」にも同じBeanが登録されてしまいます。
+     * {@code HttpSecurity#authenticationProvider}のみを呼び出す実装では、その
+     * Global AuthenticationManagerが親としてこのHttpSecurity用のProviderManagerへ設定されるため、
+     * 一次認証成功時にスローする{@link TwoFactorRequiredException}
+     * (通常の{@link org.springframework.security.core.AuthenticationException}であり
+     * {@code AccountStatusException}等ではない)が{@code ProviderManager}に一旦捕捉された後、
+     * 認証結果が得られていないと判断され、親であるGlobal AuthenticationManagerで
+     * 同じ{@code TwoPhaseAuthenticationProvider}が再度実行されてしまい、パスコードメールが
+     * 2通送信される不具合があった。ここで親を持たない{@code ProviderManager}を明示的に
+     * {@code HttpSecurity#authenticationManager}へ渡すことで、二重実行を防止する。
+     * </p>
+     */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public AuthenticationManager authenticationManager() {
+        return new ProviderManager(twoPhaseAuthenticationProvider);
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationManager authenticationManager)
+            throws Exception {
 
         http
                 // 認可判定は既存のAuthUtil(HTML_PARTS_IN_APROLE)に委ねるため、SpringSecurity側では
@@ -42,8 +68,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
                 // メールアドレス・パスワードの照合およびロック判定・二段階認証の起動は、
                 // SpringBoot自動構成のDaoAuthenticationProviderではなく本クラス専用の
-                // TwoPhaseAuthenticationProviderへ明示的に委譲する
-                .authenticationProvider(twoPhaseAuthenticationProvider)
+                // TwoPhaseAuthenticationProviderへ明示的に委譲する。親を持たない上記の
+                // AuthenticationManagerを明示的に指定することで、TwoPhaseAuthenticationProviderが
+                // 二重に実行されることを防ぐ
+                .authenticationManager(authenticationManager)
                 // ログイン画面/処理は既存のマイページ(POST)のURLをそのまま流用する
                 .formLogin(form -> form
                         .loginPage(LOGIN_PAGE_URL)
