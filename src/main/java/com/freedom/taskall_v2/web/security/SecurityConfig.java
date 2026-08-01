@@ -2,10 +2,13 @@ package com.freedom.taskall_v2.web.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.ProviderManager;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.CsrfConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 
 /**
@@ -58,11 +61,35 @@ public class SecurityConfig {
         return new ProviderManager(twoPhaseAuthenticationProvider);
     }
 
+    /**
+     * ローカル環境(local プロファイル)ではCSRFトークンの手動埋め込み無しで
+     * デバッグ・動作確認を行えるよう、CSRF対策を無効化します。
+     */
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationManager authenticationManager)
+    @Profile("local")
+    public Customizer<CsrfConfigurer<HttpSecurity>> csrfCustomizerForLocal() {
+        return CsrfConfigurer::disable;
+    }
+
+    /**
+     * 本番環境(local以外のプロファイル)では、従来通りCSRF対策を有効のまま維持します。
+     */
+    @Bean
+    @Profile("!local")
+    public Customizer<CsrfConfigurer<HttpSecurity>> csrfCustomizerForProd() {
+        return csrf -> {
+        };
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationManager authenticationManager,
+            Customizer<CsrfConfigurer<HttpSecurity>> csrfCustomizer)
             throws Exception {
 
         http
+                // ローカル環境のみCSRF対策を無効化する(csrfCustomizerForLocal/csrfCustomizerForProdは
+                // アクティブなプロファイルに応じてどちらか一方のみBean登録される)
+                .csrf(csrfCustomizer)
                 // 認可判定は既存のAuthUtil(HTML_PARTS_IN_APROLE)に委ねるため、SpringSecurity側では
                 // 全リクエストを許可する
                 .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
