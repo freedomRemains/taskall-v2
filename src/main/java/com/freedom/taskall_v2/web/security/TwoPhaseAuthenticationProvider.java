@@ -2,6 +2,8 @@ package com.freedom.taskall_v2.web.security;
 
 import java.util.LinkedHashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.LockedException;
@@ -14,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import com.freedom.taskall_v2.common.util.MsgUtil;
 import com.freedom.taskall_v2.web.service.AccntAuthLockService;
 import com.freedom.taskall_v2.web.service.LoginStatusService;
 import com.freedom.taskall_v2.web.service.TwoFactorMailService;
@@ -36,23 +39,27 @@ import jakarta.servlet.http.HttpServletRequest;
 @Component
 public class TwoPhaseAuthenticationProvider implements AuthenticationProvider {
 
+    private static final Logger logger = LoggerFactory.getLogger(TwoPhaseAuthenticationProvider.class);
+
     private final AccountUserDetailsService accountUserDetailsService;
     private final PasswordEncoder passwordEncoder;
     private final AccntAuthLockService accntAuthLockService;
     private final LoginStatusService loginStatusService;
     private final PasscodeGenerator passcodeGenerator;
     private final TwoFactorMailService twoFactorMailService;
+    private final MsgUtil msg;
 
     public TwoPhaseAuthenticationProvider(AccountUserDetailsService accountUserDetailsService,
             PasswordEncoder passwordEncoder, AccntAuthLockService accntAuthLockService,
             LoginStatusService loginStatusService, PasscodeGenerator passcodeGenerator,
-            TwoFactorMailService twoFactorMailService) {
+            TwoFactorMailService twoFactorMailService, MsgUtil msg) {
         this.accountUserDetailsService = accountUserDetailsService;
         this.passwordEncoder = passwordEncoder;
         this.accntAuthLockService = accntAuthLockService;
         this.loginStatusService = loginStatusService;
         this.passcodeGenerator = passcodeGenerator;
         this.twoFactorMailService = twoFactorMailService;
+        this.msg = msg;
     }
 
     @Override
@@ -67,13 +74,15 @@ public class TwoPhaseAuthenticationProvider implements AuthenticationProvider {
         try {
             principal = (AccountPrincipal) accountUserDetailsService.loadUserByUsername(mailAddress);
         } catch (UsernameNotFoundException e) {
-            throw new BadCredentialsException("メールアドレスもしくはパスワードが間違っています。");
+            logger.warn(msg.get("msg.warn.web.twoFactor.loginFailedAccountNotFound", mailAddress));
+            throw new BadCredentialsException(msg.get("msg.warn.web.twoFactor.loginFailedAccountNotFound", mailAddress));
         }
         String accountId = principal.getAccountId();
 
         // アカウント全体がロック中の場合は、このセッションが原因かどうかに関わらず処理を打ち切る
         if (accntAuthLockService.isLocked(accountId)) {
-            throw new LockedException("アカウントは現在、ロックされています。");
+            logger.warn(msg.get("msg.warn.web.twoFactor.accountLocked", accountId));
+            throw new LockedException(msg.get("msg.warn.web.twoFactor.accountLocked", accountId));
         }
 
         // RequestContextHolderから現在のリクエストを取得する
@@ -105,13 +114,14 @@ public class TwoPhaseAuthenticationProvider implements AuthenticationProvider {
         // 二次認証のPOST/GET処理が参照できるよう、セッションへ一次認証通過中のアカウントIDを記録する
         request.getSession().setAttribute("pendingTwoFactorAccountId", accountId);
 
-        throw new TwoFactorRequiredException("一次認証を通過しました。二段階認証のパスコードを入力してください。");
+        throw new TwoFactorRequiredException(msg.get("msg.warn.web.twoFactor.firstAuthPassed", accountId));
     }
 
     private Authentication handlePasswordFailure(String accountId, String loginStatusId) {
         loginStatusService.markFirstAuthFail(loginStatusId);
         accntAuthLockService.recordFailure(accountId);
-        throw new BadCredentialsException("メールアドレスもしくはパスワードが間違っています。");
+        logger.warn(msg.get("msg.warn.web.twoFactor.loginFailedPasswordMismatch", accountId));
+        throw new BadCredentialsException(msg.get("msg.warn.web.twoFactor.loginFailedPasswordMismatch", accountId));
     }
 
     @Override

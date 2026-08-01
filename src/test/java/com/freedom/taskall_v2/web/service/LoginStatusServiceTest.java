@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.JdbcTemplate;
 
 import com.freedom.taskall_v2.common.db.RecordQueryService;
+import com.freedom.taskall_v2.common.util.MsgUtil;
 
 @ExtendWith(MockitoExtension.class)
 class LoginStatusServiceTest {
@@ -28,6 +29,9 @@ class LoginStatusServiceTest {
 
     @Mock
     private JdbcTemplate jdbcTemplate;
+
+    @Mock
+    private MsgUtil msg;
 
     @InjectMocks
     private LoginStatusService loginStatusService;

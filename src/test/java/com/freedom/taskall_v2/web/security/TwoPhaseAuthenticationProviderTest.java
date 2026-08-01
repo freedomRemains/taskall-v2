@@ -25,6 +25,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import com.freedom.taskall_v2.common.util.MsgUtil;
 import com.freedom.taskall_v2.web.service.AccntAuthLockService;
 import com.freedom.taskall_v2.web.service.LoginStatusService;
 import com.freedom.taskall_v2.web.service.TwoFactorMailService;
@@ -51,6 +52,9 @@ class TwoPhaseAuthenticationProviderTest {
     @Mock
     private TwoFactorMailService twoFactorMailService;
 
+    @Mock
+    private MsgUtil msg;
+
     private MockHttpServletRequest request;
 
     private TwoPhaseAuthenticationProvider twoPhaseAuthenticationProvider;
@@ -63,7 +67,8 @@ class TwoPhaseAuthenticationProviderTest {
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
         twoPhaseAuthenticationProvider = new TwoPhaseAuthenticationProvider(accountUserDetailsService,
-                passwordEncoder, accntAuthLockService, loginStatusService, passcodeGenerator, twoFactorMailService);
+                passwordEncoder, accntAuthLockService, loginStatusService, passcodeGenerator, twoFactorMailService,
+                msg);
     }
 
     @AfterEach

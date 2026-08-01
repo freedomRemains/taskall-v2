@@ -10,6 +10,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import com.freedom.taskall_v2.common.db.RecordQueryService;
+import com.freedom.taskall_v2.common.exception.ApplicationInternalException;
+import com.freedom.taskall_v2.common.util.MsgUtil;
 
 /**
  * 「ログイン試行(LOGIN_STATUS)」テーブルの読み書きを行うサービスです。
@@ -31,10 +33,12 @@ public class LoginStatusService {
 
     private final RecordQueryService recordQueryService;
     private final JdbcTemplate jdbcTemplate;
+    private final MsgUtil msg;
 
-    public LoginStatusService(RecordQueryService recordQueryService, JdbcTemplate jdbcTemplate) {
+    public LoginStatusService(RecordQueryService recordQueryService, JdbcTemplate jdbcTemplate, MsgUtil msg) {
         this.recordQueryService = recordQueryService;
         this.jdbcTemplate = jdbcTemplate;
+        this.msg = msg;
     }
 
     /**
@@ -64,7 +68,8 @@ public class LoginStatusService {
                 """, accountId, sessionId, expiresAt, accountId, currentDate, accountId, currentDate);
 
         return findRow(accountId, sessionId)
-                .orElseThrow(() -> new IllegalStateException("LOGIN_STATUS行の作成直後の再取得に失敗しました。"));
+                .orElseThrow(() -> new ApplicationInternalException(
+                        msg.get("msg.err.web.twoFactor.loginStatusReloadFailed", accountId, sessionId)));
     }
 
     /** 一次認証通過時の状態へ更新します(有効期限を5分後へ短縮し、パスコードハッシュを保存する)。 */
