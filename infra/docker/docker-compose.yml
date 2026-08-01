@@ -1,0 +1,19 @@
+# versionは '3' でも動作する。細かく指定するなら、「'3.6'」のようにマイナーバージョンまで指定する
+version: '3'
+
+# サービス定義の開始
+services:
+
+  # mailhogの設定
+  mail:
+
+    # コンテナ名
+    container_name: image_mailhog
+
+    # イメージは mailhog の最新版とする
+    image: mailhog/mailhog:latest
+
+    # ポート設定
+    ports:
+      - 1025:1025
+      - 8025:8025
