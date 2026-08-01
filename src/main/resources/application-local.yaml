@@ -12,3 +12,10 @@ spring:
     driver-class-name: org.sqlite.JDBC
     username:
     password:
+
+  # メール送信設定(ローカル開発ではMailHog等のダミーSMTPサーバを想定)
+  mail:
+    host: localhost
+    port: 1025
+    username:
+    password:

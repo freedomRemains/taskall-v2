@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!--/* 一次認証(パスワード)通過後、二次認証(6桁のパスコード)の入力を受け付ける領域。
+           パスワード認証済みでもパスコード未入力の間はログインが完了していないため、
+           マイページのログインフォーム(20030_commonLogin.html)と同様に画面中央へ配置する */-->
+    <div th:fragment="body" th:if="${pendingTwoFactorAccountId != null}" class="1001201 row justify-content-center my-5">
+        <div class="col-12 col-md-5 col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <h1 class="h5 card-title text-center mb-4">二段階認証</h1>
+                    <p class="text-center mb-4">登録済みのメールアドレスに送信した6桁の確認コードを入力してください。</p>
+                    <div class="mb-4">
+                        <label for="TWO_FACTOR_CODE" class="form-label">確認コード</label>
+                        <input id="TWO_FACTOR_CODE" name="TWO_FACTOR_CODE" class="form-control" inputmode="numeric"
+                               maxlength="6" autocomplete="one-time-code">
+                    </div>
+                    <div class="d-grid">
+                        <button type="button" class="btn btn-primary" onclick="submitMainForm()">認証する</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,6 +1,7 @@
 package com.freedom.taskall_v2.web.controller;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -16,8 +17,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.ui.ExtendedModelMap;
+import org.springframework.ui.Model;
 
 import com.freedom.taskall_v2.common.util.MsgUtil;
 import com.freedom.taskall_v2.web.service.RequestHandlingService;
@@ -25,6 +29,7 @@ import com.freedom.taskall_v2.web.service.RequestHandlingService;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * {@link TaskallV2Controller}のテストです。
@@ -239,5 +244,43 @@ class TaskallV2ControllerTest {
                         .param("tableName", "ACCNT").param("recordId", "1000001"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("10000_contents"));
+    }
+
+    @Test
+    void セッションにpendingTwoFactorAccountIdがある場合は入力コンテキストへ転記されModelへも設定されること() {
+
+        TaskallV2Controller controller = new TaskallV2Controller(requestHandlingService, new ObjectMapper(), msg);
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/taskall-v2/service/twoFactorAuth.html");
+        request.getSession(true).setAttribute("pendingTwoFactorAccountId", "1000001");
+        Model model = new ExtendedModelMap();
+
+        when(requestHandlingService.execute(any())).thenAnswer(invocation -> {
+            String inputJson = invocation.getArgument(0);
+            assertThat(inputJson).contains("\"pendingTwoFactorAccountId\":\"1000001\"");
+            return "{\"respKind\":\"forward\",\"destination\":\"10000_contents.html\"}";
+        });
+
+        controller.getTwoFactorAuth(request, model);
+
+        assertThat(model.getAttribute("pendingTwoFactorAccountId")).isEqualTo("1000001");
+    }
+
+    @Test
+    void twoFactorAuthCompletedがtrueの場合はpendingTwoFactorAccountIdセッション属性が削除されること() {
+
+        TaskallV2Controller controller = new TaskallV2Controller(requestHandlingService, new ObjectMapper(), msg);
+
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/taskall-v2/service/twoFactorAuth.html");
+        request.getSession(true).setAttribute("pendingTwoFactorAccountId", "1000001");
+        Model model = new ExtendedModelMap();
+
+        when(requestHandlingService.execute(any()))
+                .thenReturn("{\"respKind\":\"redirect\",\"destination\":\"/taskall-v2/service/myPage.html\","
+                        + "\"twoFactorAuthCompleted\":true,\"account\":[{\"ACCNT_ID\":\"1000001\"}]}");
+
+        controller.postTwoFactorAuth(request, model);
+
+        assertThat(request.getSession(false).getAttribute("pendingTwoFactorAccountId")).isNull();
     }
 }

@@ -59,8 +59,49 @@ public class CreateTableSqlBuilder {
             columnPart.append("    ").append(buildColumnDefinition(columnDef));
         }
 
-        sql.append(columnPart).append("\n);");
+        sql.append(columnPart);
+        String uniqueConstraintPart = buildUniqueConstraintPart(columnDefs);
+        if (!uniqueConstraintPart.isEmpty()) {
+            sql.append(",\n").append(uniqueConstraintPart);
+        }
+        sql.append("\n);");
         return sql.toString();
+    }
+
+    /**
+     * EXTRA列の"UNIQUE_<グループ番号>_<グループ内順序>"記法を解釈し、
+     * グループごとの複合UNIQUE制約句を生成する。
+     */
+    private String buildUniqueConstraintPart(List<Map<String, String>> columnDefs) {
+
+        // グループ番号ごとに、グループ内順序をキーとしてカラム名を集める
+        Map<Integer, java.util.TreeMap<Integer, String>> groupedColumns = new java.util.TreeMap<>();
+        java.util.regex.Pattern uniquePattern = java.util.regex.Pattern.compile("^UNIQUE_(\\d+)_(\\d+)$");
+
+        for (Map<String, String> columnDef : columnDefs) {
+            String extra = columnDef.get("EXTRA");
+            if (extra == null || extra.isEmpty()) {
+                continue;
+            }
+            java.util.regex.Matcher matcher = uniquePattern.matcher(extra);
+            if (!matcher.matches()) {
+                continue;
+            }
+            int groupNo = Integer.parseInt(matcher.group(1));
+            int ordInGroup = Integer.parseInt(matcher.group(2));
+            groupedColumns.computeIfAbsent(groupNo, key -> new java.util.TreeMap<>())
+                    .put(ordInGroup, columnDef.get("FIELD_NAME"));
+        }
+
+        // グループ番号の昇順に、"UNIQUE (col1, col2)"句を連結する
+        StringBuilder uniquePart = new StringBuilder();
+        for (java.util.TreeMap<Integer, String> columns : groupedColumns.values()) {
+            if (uniquePart.length() > 0) {
+                uniquePart.append(",\n");
+            }
+            uniquePart.append("    UNIQUE (").append(String.join(", ", columns.values())).append(")");
+        }
+        return uniquePart.toString();
     }
 
     private String buildColumnDefinition(Map<String, String> columnDef) {
