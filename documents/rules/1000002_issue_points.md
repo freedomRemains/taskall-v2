@@ -50,6 +50,22 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     （`TableNameValidator.java`）、`msg.err.common.db.tsvValueContainsReservedMarker`
     （`TsvValueEscaper.java`）は、いずれも例外種別（`BusinessRuleViolationException`）は
     正しかったため変更せず、キー名のみ`msg.warn.*`に改名。
-- 全体監査は、`messages.properties`の全33キーについて実施し、issueコメントに
-  一覧表として結果を掲載した。今後同種の規約整理issueが発生した場合は、この監査結果を
-  参考にしてよい。
+### issue #23: SELECT文のORDER BYを主キーのみに修正
+
+- issue: https://github.com/freedomRemains/taskall-v2/issues/23
+- PR: https://github.com/freedomRemains/taskall-v2/pull/24
+- 本プロジェクトでは主キーは必ずサロゲートキーであるというルールがあるため、
+  `SelectSqlBuilder.build`が生成するSELECT文のORDER BY句は、全カラムではなく
+  主キー（`TBL_DEF.KEY_DIV=PRI`のカラム）のみで組み立てるよう修正
+  （`src/main/java/com/freedom/taskall_v2/common/db/SelectSqlBuilder.java`）。
+- 主キー定義が見つからない場合は、TBL_DEF資材自体の不整合と判断し
+  `ApplicationInternalException`（`msg.err.common.db.primaryKeyNotFound`）をスローする。
+- `DbSchemaSqlGeneratorRealDataTest`を実行し、`src/main/resources/db/sql`配下の
+  `SELECT_*.sql`を再生成する必要がある（SQL生成ロジック変更時の定型作業）。
+
+### issue #25: 「documents/rules/1000002_issue_points.md」追記のルール化
+
+- issue: https://github.com/freedomRemains/taskall-v2/issues/25
+- issue対応完了時に本ファイル（`documents/rules/1000002_issue_points.md`）へポイントを
+  追記する運用を、`.github/copilot-instructions.md`の「開発の進め方」節にルールとして
+  明文化した。
