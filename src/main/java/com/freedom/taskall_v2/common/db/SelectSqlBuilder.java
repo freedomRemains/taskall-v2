@@ -3,7 +3,7 @@ package com.freedom.taskall_v2.common.db;
 import java.util.List;
 import java.util.Map;
 
-import com.freedom.taskall_v2.common.exception.BusinessRuleViolationException;
+import com.freedom.taskall_v2.common.exception.ApplicationInternalException;
 import com.freedom.taskall_v2.common.util.MsgUtil;
 
 /**
@@ -35,9 +35,10 @@ public class SelectSqlBuilder {
      */
     public String build(String tableName, List<Map<String, String>> columnDefs) {
 
-        // SELECT対象のカラム定義が無い場合はSQLを組み立てられないため、業務エラーとして扱います。
+        // SELECT対象のカラム定義が無い場合はSQLを組み立てられません。TBL_DEF資材自体の不整合であり、
+        // システム運用自体が不可能な状態のため、システムエラーとして扱います。
         if (columnDefs == null || columnDefs.isEmpty()) {
-            throw new BusinessRuleViolationException(msg.get("msg.err.common.db.columnDefNotFound", tableName));
+            throw new ApplicationInternalException(msg.get("msg.err.common.db.columnDefNotFound", tableName));
         }
 
         // TBL_DEFの定義順を保ったまま、SELECT句とORDER BY句で共通利用するカラム一覧を組み立てます。

@@ -31,6 +31,6 @@ class SelectSqlBuilderTest {
         org.junit.jupiter.api.function.Executable executable = () -> selectSqlBuilder.build("SAMPLE", List.of());
 
         org.junit.jupiter.api.Assertions.assertThrows(
-                com.freedom.taskall_v2.common.exception.BusinessRuleViolationException.class, executable);
+                com.freedom.taskall_v2.common.exception.ApplicationInternalException.class, executable);
     }
 }

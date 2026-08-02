@@ -63,11 +63,11 @@ public class VerifyTwoFactorAuthService implements ScriptElementService {
         String accountId = context.path("pendingTwoFactorAccountId").asString("");
         if (accountId.isBlank()) {
             throw new BusinessRuleViolationException(
-                    msg.get("msg.err.web.requiredParamMissing", "pendingTwoFactorAccountId"));
+                    msg.get("msg.warn.web.requiredParamMissing", "pendingTwoFactorAccountId"));
         }
         String inputCode = context.path("TWO_FACTOR_CODE").asString("");
         if (inputCode.isBlank()) {
-            throw new BusinessRuleViolationException(msg.get("msg.err.web.requiredParamMissing", "TWO_FACTOR_CODE"));
+            throw new BusinessRuleViolationException(msg.get("msg.warn.web.requiredParamMissing", "TWO_FACTOR_CODE"));
         }
 
         // アカウント全体がロック中の場合は、他セッションの失敗が原因の場合も含め一律で処理を打ち切る

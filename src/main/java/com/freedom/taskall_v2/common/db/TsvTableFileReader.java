@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 
 import com.freedom.taskall_v2.common.exception.ApplicationInternalException;
-import com.freedom.taskall_v2.common.exception.BusinessRuleViolationException;
 import com.freedom.taskall_v2.common.util.MsgUtil;
 
 /**
@@ -59,8 +58,9 @@ public class TsvTableFileReader {
     public ArrayList<LinkedHashMap<String, String>> read(Path filePath) {
 
         // ファイルの存在を確認したうえで、共通のInputStream読み込み処理へ委譲する
+        // (資材ファイル自体の欠落であり、システム運用自体が不可能な状態のため、システムエラーとする)
         if (!Files.exists(filePath)) {
-            throw new BusinessRuleViolationException(msg.get("msg.err.common.db.fileNotFound", filePath));
+            throw new ApplicationInternalException(msg.get("msg.err.common.db.fileNotFound", filePath));
         }
         try (InputStream inputStream = Files.newInputStream(filePath)) {
             return read(inputStream);
@@ -94,9 +94,11 @@ public class TsvTableFileReader {
     private ArrayList<LinkedHashMap<String, String>> readRecords(BufferedReader reader) throws IOException {
 
         // 先頭行をヘッダ行として読み込み、列名一覧を確定する
+        // (ヘッダ行が無いのは資材ファイル自体の不整合であり、システム運用自体が不可能な状態のため、
+        //  システムエラーとする)
         String headerLine = reader.readLine();
         if (headerLine == null) {
-            throw new BusinessRuleViolationException(msg.get("msg.err.common.db.headerRowNotFound"));
+            throw new ApplicationInternalException(msg.get("msg.err.common.db.headerRowNotFound"));
         }
         String[] headers = headerLine.split("\t", -1);
 

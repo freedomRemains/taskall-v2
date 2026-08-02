@@ -4,7 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.freedom.taskall_v2.common.db.sqlite.SqlitePrimaryKeyColumnSqlBuilder;
-import com.freedom.taskall_v2.common.exception.BusinessRuleViolationException;
+import com.freedom.taskall_v2.common.exception.ApplicationInternalException;
 import com.freedom.taskall_v2.common.util.MsgUtil;
 
 /**
@@ -43,8 +43,9 @@ public class CreateTableSqlBuilder {
     public String build(String tableName, List<Map<String, String>> columnDefs) {
 
         // 対象テーブルに対するカラム定義が取得できていることを確認する
+        // (TBL_DEF資材自体の不整合であり、システム運用自体が不可能な状態のため、システムエラーとする)
         if (columnDefs == null || columnDefs.isEmpty()) {
-            throw new BusinessRuleViolationException(msg.get("msg.err.common.db.columnDefNotFound", tableName));
+            throw new ApplicationInternalException(msg.get("msg.err.common.db.columnDefNotFound", tableName));
         }
 
         // CREATE TABLE句を開始し、定義順のまま各カラム定義を連結する

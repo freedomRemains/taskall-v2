@@ -126,7 +126,7 @@ public class GetAccountService implements ScriptElementService {
             }
         }
 
-        throw new BusinessRuleViolationException(msg.get("msg.err.web.roleRestriction", requestUri));
+        throw new BusinessRuleViolationException(msg.get("msg.warn.web.roleRestriction", requestUri));
     }
 
     private ObjectNode readAsObjectNode(String json) {
