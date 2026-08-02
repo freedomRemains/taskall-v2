@@ -50,23 +50,27 @@ class GetAllTableSelectSqlServiceTest {
 
         when(dbMngProperties.getWorkDir()).thenReturn(tempDir.toString());
 
-        List<Map<String, String>> columnDefs = List.of(buildColumnDef("ACCNT_ID"), buildColumnDef("ACCOUNT_NAME"));
+        List<Map<String, String>> columnDefs = List.of(buildColumnDef("ACCNT_ID", "PRI"),
+                buildColumnDef("ACCOUNT_NAME", null));
         when(liveTableColumnDefLoader.load("ACCNT")).thenReturn(columnDefs);
 
         String result = getAllTableSelectSqlService.execute("{\"tableNameList\":[\"ACCNT\"]}");
 
         Path sqlFilePath = tempDir.resolve("sql").resolve("SELECT_ACCNT.sql");
         assertThat(Files.readString(sqlFilePath, StandardCharsets.UTF_8))
-                .isEqualTo("SELECT ACCNT_ID, ACCOUNT_NAME FROM ACCNT ORDER BY ACCNT_ID, ACCOUNT_NAME;"
+                .isEqualTo("SELECT ACCNT_ID, ACCOUNT_NAME FROM ACCNT ORDER BY ACCNT_ID;"
                         + System.lineSeparator());
 
         JsonNode resultNode = objectMapper.readTree(result);
         assertThat(resultNode.path("selectSqlDirPath").asText()).isEqualTo(tempDir.resolve("sql").toString());
     }
 
-    private Map<String, String> buildColumnDef(String fieldName) {
+    private Map<String, String> buildColumnDef(String fieldName, String keyDiv) {
         Map<String, String> columnDef = new LinkedHashMap<>();
         columnDef.put("FIELD_NAME", fieldName);
+        if (keyDiv != null) {
+            columnDef.put("KEY_DIV", keyDiv);
+        }
         return columnDef;
     }
 }
