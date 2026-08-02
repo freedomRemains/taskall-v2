@@ -1,37 +1,32 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<body>
-    <!--/* 共通ヘッダは全画面の第一印象を決めるため、灰色(bg-secondary)ではなく
-           テーマカラー(bg-primary、色定義はrwstyle.cssの--bs-primaryに集約)を採用する。
-           「TOP」「マイページ」等のリンクは、灰色背景に白文字のnav-linkだけだとリンクだと
-           気付かれにくいため、outline付きの丸みボタン(rounded-pill)にしてタブ風の
-           クリック可能な外観にする */-->
-    <nav th:fragment="body" class="navbar navbar-expand-md navbar-dark bg-primary shadow-sm mb-4">
-        <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="#">
-                <em th:text="${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'systemName').get(0).GNR_VAL}">Remainz</em>
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarMenu">
-                <ul class="navbar-nav ms-auto align-items-md-center">
-                    <li class="nav-item"
-                        th:each="urlLink : ${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'urlLink')}">
-                        <a class="btn btn-outline-light rounded-pill px-3 mx-1 my-1" th:href="${urlLink.URI_PATTERN}"
-                           th:text="${urlLink.PAGE_NAME}">Link</a>
-                    </li>
-                    <!--/* ログインユーザ名とログアウトボタンは、他のリンクとは意味合いが異なる
-                           (ログインユーザ自身に関わる操作)ため、少し間隔(ms-md-3)を空けて隣接させる */-->
-                    <li class="nav-item ms-md-3">
-                        <span class="navbar-text text-white fw-semibold" th:text="${account.get(0).ACCOUNT_NAME}">ゲスト</span>
-                    </li>
-                    <li class="nav-item" th:if="${account.get(0).ACCNT_ID != '1000001'}">
-                        <button type="submit" form="logoutForm" class="btn btn-light btn-sm rounded-pill ms-2">ログアウト</button>
-                    </li>
-                </ul>
-            </div>
+<!--/* 共通ヘッダは全画面の第一印象を決めるため、灰色(bg-secondary)ではなく
+       テーマカラー(bg-primary、色定義はrwstyle.cssの--bs-primaryに集約)を採用する。
+       「TOP」「マイページ」等のリンクは、灰色背景に白文字のnav-linkだけだとリンクだと
+       気付かれにくいため、outline付きの丸みボタン(rounded-pill)にしてタブ風の
+       クリック可能な外観にする */-->
+<nav xmlns:th="http://www.thymeleaf.org" th:fragment="body" class="navbar navbar-expand-md navbar-dark bg-primary shadow-sm mb-4">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="#">
+            <em th:text="${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'systemName').get(0).GNR_VAL}">Remainz</em>
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarMenu">
+            <ul class="navbar-nav ms-auto align-items-md-center">
+                <li class="nav-item"
+                    th:each="urlLink : ${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'urlLink')}">
+                    <a class="btn btn-outline-light rounded-pill px-3 mx-1 my-1" th:href="${urlLink.URI_PATTERN}"
+                       th:text="${urlLink.PAGE_NAME}">Link</a>
+                </li>
+                <!--/* ログインユーザ名とログアウトボタンは、他のリンクとは意味合いが異なる
+                       (ログインユーザ自身に関わる操作)ため、少し間隔(ms-md-3)を空けて隣接させる */-->
+                <li class="nav-item ms-md-3">
+                    <span class="navbar-text text-white fw-semibold" th:text="${account.get(0).ACCOUNT_NAME}">ゲスト</span>
+                </li>
+                <li class="nav-item" th:if="${account.get(0).ACCNT_ID != '1000001'}">
+                    <button type="submit" form="logoutForm" class="btn btn-light btn-sm rounded-pill ms-2">ログアウト</button>
+                </li>
+            </ul>
         </div>
-    </nav>
-</body>
-</html>
+    </div>
+</nav>

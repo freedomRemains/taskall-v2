@@ -1,16 +1,11 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<body>
-    <div th:fragment="body" class="1001101">
-        <div class="p-2"
-             th:if="${not #lists.isEmpty(T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'errMsgList'))}">
-            <div th:each="errMsg : ${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'errMsgList')}">
-                <!-- ERR_MSGはGNR_KEY_VAL(管理者投入のマスタデータ)を由来とする固定文言であり、
-                     改行を<br />で埋め込んでいるため、th:textではなくth:utextでエスケープせず出力する。
-                     色指定はstyle属性へのベタ書きを避け、Bootstrap標準のtext-dangerクラスを用いる */-->
-                <span class="text-danger fw-semibold" th:utext="${errMsg.ERR_MSG}">Error</span>
-            </div>
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="body" class="1001101">
+    <div class="p-2"
+         th:if="${not #lists.isEmpty(T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'errMsgList'))}">
+        <div th:each="errMsg : ${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'errMsgList')}">
+            <!--/* ERR_MSGはGNR_KEY_VAL(管理者投入のマスタデータ)を由来とする固定文言であり、
+                 改行を<br />で埋め込んでいるため、th:textではなくth:utextでエスケープせず出力する。
+                 色指定はstyle属性へのベタ書きを避け、Bootstrap標準のtext-dangerクラスを用いる */-->
+            <span class="text-danger fw-semibold" th:utext="${errMsg.ERR_MSG}">Error</span>
         </div>
     </div>
-</body>
-</html>
+</div>

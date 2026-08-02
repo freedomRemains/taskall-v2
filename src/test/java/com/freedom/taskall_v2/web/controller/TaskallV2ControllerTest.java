@@ -127,6 +127,27 @@ class TaskallV2ControllerTest {
     }
 
     @Test
+    void マイページのレンダリング結果に不要なbodyタグが混入しないこと() throws Exception {
+
+        // issue #15: parts/配下のフラグメントテンプレートがDOCTYPE/html/bodyを持つ完全な
+        // HTML文書だったため、th:replaceでの参照先selectionにbodyタグが漏れ出す不具合があった
+        when(requestHandlingService.execute(anyString())).thenReturn(
+                "{\"respKind\":\"forward\",\"destination\":\"10000_contents.html\","
+                        + "\"htmlPage\":[{\"partsInPageId\":\"1000201\",\"htmlPartsId\":\"1000001\","
+                        + "\"items\":[{\"itemKey\":\"systemName\",\"records\":[{\"GNR_VAL\":\"Taskall\"}]}]}],"
+                        + "\"account\":[{\"ACCNT_ID\":\"1000001\",\"ACCOUNT_NAME\":\"ゲスト\"}],"
+                        + "\"authList\":[{\"HTML_PARTS_ID\":\"1000001\",\"AUTH_KIND\":\"read\"}]}");
+
+        String responseBody = mockMvc.perform(get("/taskall-v2/service/myPage.html"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        // ページ全体としてbody開始/終了タグはそれぞれ1個のみ出現するべき
+        assertThat(org.springframework.util.StringUtils.countOccurrencesOf(responseBody, "<body")).isEqualTo(1);
+        assertThat(org.springframework.util.StringUtils.countOccurrencesOf(responseBody, "</body>")).isEqualTo(1);
+    }
+
+    @Test
     void テーブルデータメンテナンス画面のPOSTリクエストで一括削除が実行されビュー名が解決されること() throws Exception {
 
         when(requestHandlingService.execute(anyString())).thenReturn(
