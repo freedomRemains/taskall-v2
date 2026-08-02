@@ -259,6 +259,11 @@ read/edit 制御は `HTML_PARTS_IN_APROLE` で管理し、`AuthUtil.hasEditAuth(
 本プロジェクトはissue -> ブランチ -> pull requestのループで、AIエージェントによって開発が
 進められます（`documents/design/2000003_implementation_design.md`）。
 
+- **作業着手前に、必ず`documents/rules/`配下の全ファイルを読むこと。** 環境変数の設定先
+  （JAVA_HOME、アプリ起動ポート等）、ブランチ作成・プルリク作成の具体的なコマンド、
+  DBクリーンアップ手順など、開発効率化のためAIとの過去のやり取りを踏まえて策定された
+  規則が記載されている。既知の内容であっても、探索や試行錯誤を省略しクレジット消費を
+  抑えるため、都度確認してから作業に着手すること。
 - **issueの指定が無い実装依頼には着手しないこと。** issueのURLが示されていない場合は
   「実装依頼にはissueが必要です」と回答し、実装作業を行わない。
 - 実装作業を開始する前に、**superpowers**（https://github.com/obra/superpowers）が
