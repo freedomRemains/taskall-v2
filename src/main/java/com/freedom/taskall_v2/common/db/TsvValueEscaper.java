@@ -46,7 +46,7 @@ public class TsvValueEscaper {
         // マーカー文字列が既に含まれていると、読み込み時に元の値を復元できなくなるため業務エラーとする
         if (value.contains(CR_MARKER) || value.contains(LF_MARKER) || value.contains(TAB_MARKER)) {
             throw new BusinessRuleViolationException(
-                    msg.get("msg.err.common.db.tsvValueContainsReservedMarker", value));
+                    msg.get("msg.warn.common.db.tsvValueContainsReservedMarker", value));
         }
 
         return value.replace("\r", CR_MARKER).replace("\n", LF_MARKER).replace("\t", TAB_MARKER);

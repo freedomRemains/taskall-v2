@@ -45,7 +45,7 @@ public class TableNameValidator {
         List<LinkedHashMap<String, String>> tableNameRows = recordQueryService.select(DISTINCT_TABLE_NAME_SQL);
         boolean exists = tableNameRows.stream().anyMatch(row -> tableName.equals(row.get("TABLE_NAME")));
         if (!exists) {
-            throw new BusinessRuleViolationException(msg.get("msg.err.web.invalidTableName", tableName));
+            throw new BusinessRuleViolationException(msg.get("msg.warn.web.invalidTableName", tableName));
         }
     }
 }

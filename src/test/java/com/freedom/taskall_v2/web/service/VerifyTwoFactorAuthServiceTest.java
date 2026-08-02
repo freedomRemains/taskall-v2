@@ -52,7 +52,7 @@ class VerifyTwoFactorAuthServiceTest {
     @Test
     public void pendingTwoFactorAccountIdが無い場合は業務エラーとなること() {
 
-        when(msgUtil.get("msg.err.web.requiredParamMissing", "pendingTwoFactorAccountId"))
+        when(msgUtil.get("msg.warn.web.requiredParamMissing", "pendingTwoFactorAccountId"))
                 .thenReturn("Required parameter missing: pendingTwoFactorAccountId");
 
         String contextJson = "{\"sessionId\":\"session-1\"}";

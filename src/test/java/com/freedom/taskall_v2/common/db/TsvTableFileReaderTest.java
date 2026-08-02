@@ -11,7 +11,7 @@ import java.util.LinkedHashMap;
 
 import org.junit.jupiter.api.Test;
 
-import com.freedom.taskall_v2.common.exception.BusinessRuleViolationException;
+import com.freedom.taskall_v2.common.exception.ApplicationInternalException;
 
 class TsvTableFileReaderTest {
 
@@ -56,7 +56,7 @@ class TsvTableFileReaderTest {
         InputStream inputStream = toInputStream("");
 
         assertThatThrownBy(() -> tsvTableFileReader.read(inputStream))
-                .isInstanceOf(BusinessRuleViolationException.class);
+                .isInstanceOf(ApplicationInternalException.class);
     }
 
     @Test
@@ -65,7 +65,7 @@ class TsvTableFileReaderTest {
         java.nio.file.Path notExistFile = tempDir.resolve("NOT_EXIST.txt");
 
         assertThatThrownBy(() -> tsvTableFileReader.read(notExistFile))
-                .isInstanceOf(BusinessRuleViolationException.class);
+                .isInstanceOf(ApplicationInternalException.class);
     }
 
     @Test
