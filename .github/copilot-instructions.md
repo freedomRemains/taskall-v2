@@ -278,6 +278,11 @@ read/edit 制御は `HTML_PARTS_IN_APROLE` で管理し、`AuthUtil.hasEditAuth(
   訂正・補完せず、必ず質問すること。**
 - pull requestへの指摘対応時も、該当のコメント内容を確認し、実装・テスト双方を修正する。
   この場合も不明点があれば必ず質問すること。
+- **issue対応が完了した際は、`documents/rules/1000002_issue_points.md`に、対応した
+  issueのポイント（issue URL、PR URL、関連する相対パス、決定事項・規約の要点）を
+  `###`見出しのセクションとして追記すること。** これにより、今後の作業で当該issueや
+  pull requestの全文を読み返さなくても、要点だけを短時間で把握できるようにする
+  （`documents/rules/1000002_issue_points.md`の`## 概要`節も参照）。
 
 ## ドキュメントの管理方法
 
