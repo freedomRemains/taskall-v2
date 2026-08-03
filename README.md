@@ -77,6 +77,7 @@ docker compose up -d
 - [実装設計](documents/design/2000003_implementation_design.md)
 - [開発環境構築手順(WSL及びdocker)](documents/procedure/3000001_wsl.md)
 - [開発環境構築手順(VSCode)](documents/procedure/3000011_vscode.md)
+- [Terraform環境構築手順](documents/procedure/3000021_terraform.md)
 
 ---
 
