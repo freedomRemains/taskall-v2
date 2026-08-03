@@ -69,3 +69,35 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
 - issue対応完了時に本ファイル（`documents/rules/1000002_issue_points.md`）へポイントを
   追記する運用を、`.github/copilot-instructions.md`の「開発の進め方」節にルールとして
   明文化した。
+
+### issue #27: AWS環境構築（方針検討）
+
+- issue: https://github.com/freedomRemains/taskall-v2/issues/27
+- PR: https://github.com/freedomRemains/taskall-v2/pull/28
+- 本issueは方針検討のみとし、具体的な実装（Terraformコード・GitHub Actions設定ファイル作成等）は
+  後続の複数issueに分割して対応する。成果物は
+  `documents/design/2000007_aws_build_up.md`にまとめた。
+- 決定事項の要点:
+  - 費用最小構成（EC2単体）を維持しつつ、CloudFront+ACM（無料HTTPS化）、WAF最小ルール
+    （Managed Rule Core/SQLi/XSS＋IPレート制限）、EC2はPublic SubnetだがSecurity Groupで
+    CloudFrontのIPレンジのみ許可し直アクセス禁止、SSHは使わずSSM Session Manager経由運用とする。
+  - EC2インスタンスは`t4g.small`（Graviton, ARM64）、OSは`Amazon Linux 2023 (arm64)`。
+  - DBはAWS環境でも当面SQLiteのまま構築し、RDS移行は将来課題とする（スコープ外）。
+  - CI/CDはdevelop→mainマージ時のみGitHub Actionsを起動し、Gradleビルド＋全テスト→
+    アーティファクトをS3へアップロードするところまでとする（feature→developのマージ時は
+    現行通りCIを実行しない）。GitHub ActionsからAWSへの認証は、長期IAMユーザではなく
+    **OIDC連携（GitHub Actions → AWS IAM Role）** を採用する（討議の結果、長期キー方式から
+    変更）。
+  - S3にアーティファクトがあるかどうかの判定・実際のリリース実行はEC2側が担う
+    （costを抑えるため）。EC2側は**systemdタイマーで定期的にS3をポーリング**し、
+    S3オブジェクトのメタデータ（バージョンIDまたはタイムスタンプ）を保持して新旧を差分検知する
+    方式とする。
+  - Terraformは`infra/terraform`配下に配置し、現時点ではprod環境のみ（tfvars分離なし）。
+    state管理はS3＋DynamoDB Lockを使用し、publicリポジトリにstateファイルを絶対に含めない。
+  - ドメイン「www.taskall-v2.co.jp」はAWS Route53で新規取得する想定だが、
+    Terraformで管理するのはRoute53 Hosted Zoneのみとし、取得自体は手動で行う。
+  - 監視（CloudWatchアラーム）、SQLiteのバックアップ、ステージング環境分離は、いずれも
+    初期構築のスコープ外とし、将来必要になった時点で別issueとして検討する。
+  - publicリポジトリでIaC資材を管理する前提として、`.gitignore`に`*.tfvars`を追加、
+    `terraform validate`・`tflint`・`checkov`をCIに組み込み、PR時に自動lintを走らせる方針。
+    access_key/secret_key/password等の秘匿情報混入の有無は、マージ時に必ずレビューする。
