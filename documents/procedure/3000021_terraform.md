@@ -9,10 +9,11 @@
 ## 概要
 
 - 本資料は、`infra/terraform`配下のTerraform資材を使い、AWS環境（VPC / EC2 / Security Group /
-  IAM Role）を構築する手順を示します。
+  IAM Role / ACM / WAF / CloudFront / Route53）を構築する手順を示します。
 - 資材構成の詳細な設計方針は
   [documents/design/2000007_aws_build_up.md](../design/2000007_aws_build_up.md)を参照してください。
-- 本手順は[issue #29](https://github.com/freedomRemains/taskall-v2/issues/29)（
+- 本手順は[issue #29](https://github.com/freedomRemains/taskall-v2/issues/29)・
+  [issue #32](https://github.com/freedomRemains/taskall-v2/issues/32)（いずれも
   [issue #27](https://github.com/freedomRemains/taskall-v2/issues/27)の後続issue）に対応します。
 
 ---
@@ -30,16 +31,24 @@
 ```
 infra/terraform/
   bootstrap/   # Terraform state管理用のS3バケット・DynamoDB Lockテーブルを構築する(local state)
-  prod/        # 本番環境(prod)のroot module。VPC/EC2/SG/IAM Roleをモジュール経由で構築する
+  prod/        # 本番環境(prod)のroot module。VPC/EC2/SG/IAM Role/ACM/WAF/CloudFront/Route53を
+               # モジュール経由で構築する
   modules/
     vpc/            # VPC, Internet Gateway, Public Subnet, Route Table
     security_group/ # EC2用Security Group(CloudFront管理プレフィックスリストのみ許可)
     iam_ec2_role/   # EC2用IAM Role(SSM接続用) + Instance Profile
     ec2/            # EC2本体(t4g.small, Amazon Linux 2023 arm64) + Elastic IP
+    acm/            # CloudFront用ACM証明書(DNS検証、us-east-1で発行)
+    waf/            # CloudFrontにアタッチするWAFv2 WebACL(Core/SQLi等のAWS Managed Rule + IPレート制限)
+    cloudfront/     # CloudFrontディストリビューション(EC2をカスタムオリジンとするHTTPS終端)
+    route53/        # 取得済みドメインのHosted Zone参照 + CloudFrontへのAlias(A/AAAA)レコード
 ```
 
 - 現時点ではprod環境のみを想定しており、環境分離（Terraform workspaceや環境別tfvars）は
   行っていません。
+- ACM証明書・WAFv2(CLOUDFRONT scope)はAWSの仕様上us-east-1リージョンでのみ作成可能なため、
+  `prod/main.tf`でus-east-1向けのprovider alias(`aws.us_east_1`)を追加し、`acm`/`waf`モジュール
+  へ明示的に渡しています（EC2/VPC等はこれまで通り`var.region`(ap-northeast-1)で作成）。
 
 ---
 
@@ -87,6 +96,10 @@ terraform apply
 - `apply`完了後、`ec2_public_ip`の出力値でEC2に付与されたElastic IPを確認できます。
 - SSH接続は行わず、AWSマネジメントコンソールまたはAWS CLIから
   `aws ssm start-session --target <instance_id>`でSSM Session Manager経由の接続を確認します。
+- `apply`完了後、`cloudfront_domain_name`（CloudFrontディストリビューションのドメイン名）・
+  `site_url`（`https://<取得済みドメイン>`）の出力値も確認できます。ACM証明書のDNS検証・
+  CloudFrontディストリビューションの配信開始（Deployed状態への遷移）には数分〜数十分程度
+  かかる場合があるため、`apply`完了直後は`site_url`へアクセスしてもエラーになることがあります。
 
 ---
 

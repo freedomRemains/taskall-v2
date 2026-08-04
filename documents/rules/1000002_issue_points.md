@@ -129,3 +129,43 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
   - `prod`構成の`apply`ではCloudFrontを構築しないため、取得済みドメインはこの時点では
     まだ使用しない（EC2にはElastic IPで直接アクセスする状態）。ドメインが実際に
     紐付くのはCloudFront/ACM/Route53を構築する後続issue対応時。
+
+### issue #32: CloudFront / ACM / WAF / Route53構築
+
+- issue: https://github.com/freedomRemains/taskall-v2/issues/32
+- PR: https://github.com/freedomRemains/taskall-v2/pull/33
+- issue #29に続き、`documents/design/2000007_aws_build_up.md`で検討したTerraform構成のうち、
+  CloudFront / ACM / WAF / Route53の4モジュールを`infra/terraform/modules`配下に実装した。
+  `terraform apply`によるAWS環境への実際の構築・`destroy`によるクリーンアップ、AWSコンソールでの
+  Route53/CloudFront設定確認まで動作検証済み。
+- 追加モジュール構成:
+  - `modules/acm`: CloudFront用ACM証明書をDNS検証で発行（CloudFrontの仕様上
+    us-east-1リージョン必須のため、`prod/main.tf`に`aws.us_east_1`のprovider aliasを追加し、
+    `configuration_aliases`経由で`acm`/`waf`モジュールに渡す）。
+  - `modules/waf`: WAFv2 WebACL（CLOUDFRONT scope、同じくus-east-1必須）。AWS Managed Rule
+    （Core/SQLi/KnownBadInputs=Log4j対策）＋IPレート制限の最小構成。
+  - `modules/cloudfront`: EC2をカスタムオリジンとするディストリビューション（HTTPS終端、
+    動的アプリ用にキャッシュ無効化、WAF/ACM証明書をアタッチ）。
+  - `modules/route53`: 取得済みドメインの既存Hosted Zoneを参照し、CloudFrontへの
+    Alias(A/AAAA)レコード、およびCloudFrontオリジン用のAレコード（後述）を作成。
+- 実装・動作検証時に判明した留意点（いずれも実機の`terraform apply`エラーから判明）:
+  - WAFv2 WebACLの`description`は、EC2 Security Groupの`description`とは異なる独自の
+    正規表現制約（`^[\w+=:#@/\-,\.][\w+=:#@/\-,\.\s]+[\w+=:#@/\-,\.]$`）を持ち、
+    **丸括弧`()`が使用不可**（`ValidationException`）。`modules/waf/main.tf`のdescriptionから
+    括弧を除去し、区切りをハイフン・カンマに変更した。
+  - CloudFrontのカスタムオリジン`domain_name`には**IPアドレスを直接指定できない**
+    （`InvalidArgument: The parameter origin name cannot be an IP address.`）。
+    そのため`module.ec2.public_ip`を直接渡すのではなく、EC2のElastic IPを指す専用の
+    Aレコード（`origin.<domain_name>`、`modules/route53`内で作成）を用意し、CloudFrontは
+    このDNS名をオリジンとして参照する。一時的に手動でRoute53へ「www.taskall-v2.com」の
+    Aレコードを作成しオリジンに指定する対応が取られたが、Terraform管理外のリソースに
+    IaC側が依存する（EC2再作成時にIP追従できない等）ため差し戻し、上記の
+    Terraform管理下のAレコード方式に統一した。
+  - モジュール間の依存関係として、`module.route53_zone`は`module.acm`（DNS検証用）より前段で
+    Hosted Zoneを参照しつつ、同じモジュール内の頂点Aliasレコードは`module.cloudfront`の
+    出力に依存する。Terraformの依存グラフはリソース単位で解決されるため、この構成でも
+    循環参照にはならない（`zone_id`出力はdata sourceのみに依存し、cloudfront側の変数を
+    使う頂点Aliasレコードとは無関係なため）。
+  - checkovの新規指摘（`CKV_AWS_374`/`CKV_AWS_305`/`CKV_AWS_310`/`CKV_AWS_86`/
+    `CKV2_AWS_32`/`CKV2_AWS_31`/`CKV2_AWS_47`(誤検知)/`CKV2_AWS_23`(誤検知)）は、
+    費用最小方針・モジュール境界による誤検知として、該当ファイル内にコメントで理由を明記した。
