@@ -81,7 +81,7 @@
     行うが、bootstrap自体はプロジェクトを通じて最初の1回のみ実行すればよい。
   - 詳細な実行手順は`documents/procedure/3000021_terraform.md`を参照。
 - **Route53でのドメイン新規取得**
-  - 本資料「AWS構成」節の通り、ドメイン「www.taskall-v2.co.jp」はAWS Route53で新規取得する
+  - 本資料「AWS構成」節の通り、ドメイン ~~「www.taskall-v2.co.jp」~~ 「taskall-v2.com」 はAWS Route53で新規取得する
     想定だが、Terraformで管理するのはRoute53 Hosted Zoneのみであり、ドメイン取得自体は
     AWSマネジメントコンソールから手動で行う（Terraformのaws_route53_zoneリソースは、
     取得済みドメインに対するHosted Zoneの管理のみを担う）。
@@ -96,7 +96,7 @@
 利用者
   │ HTTPS
   ▼
-Route53 (Hosted Zoneのみ管理。ドメイン「www.taskall-v2.co.jp」自体の取得は手動)
+Route53 (Hosted Zoneのみ管理。ドメイン 「taskall-v2.com」 自体の取得は手動)
   │
   ▼
 CloudFront + ACM証明書（無料・自動更新）

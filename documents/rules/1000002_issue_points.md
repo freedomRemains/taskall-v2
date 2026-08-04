@@ -94,7 +94,7 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     方式とする。
   - Terraformは`infra/terraform`配下に配置し、現時点ではprod環境のみ（tfvars分離なし）。
     state管理はS3＋DynamoDB Lockを使用し、publicリポジトリにstateファイルを絶対に含めない。
-  - ドメイン「www.taskall-v2.co.jp」はAWS Route53で新規取得する想定だが、
+  - ドメイン ~~「www.taskall-v2.co.jp」~~ 「taskall-v2.com」 はAWS Route53で新規取得する想定だが、
     Terraformで管理するのはRoute53 Hosted Zoneのみとし、取得自体は手動で行う。
   - 監視（CloudWatchアラーム）、SQLiteのバックアップ、ステージング環境分離は、いずれも
     初期構築のスコープ外とし、将来必要になった時点で別issueとして検討する。
