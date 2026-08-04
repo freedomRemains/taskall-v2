@@ -9,8 +9,9 @@ data "aws_ec2_managed_prefix_list" "cloudfront" {
 
 # [許容リスク(誤検知): CKV2_AWS_5] modules/ec2でaws_instance.appにvpc_security_group_idsとしてアタッチしている(モジュール境界をまたぐためcheckovが検知できない誤検知)
 resource "aws_security_group" "ec2" {
-  name        = "${var.project_name}-ec2-sg"
-  description = "CloudFrontからのアプリポートアクセスのみ許可し、直アクセス・SSHを禁止する"
+  name = "${var.project_name}-ec2-sg"
+  # AWSのGroupDescriptionはASCII文字のみ対応のため、説明は英語で記述する
+  description = "Allow app port access from CloudFront only; deny direct access and SSH"
   vpc_id      = var.vpc_id
 
   tags = {
@@ -22,7 +23,8 @@ resource "aws_security_group" "ec2" {
 # CloudFrontのオリジンリクエストのみアプリポートへのアクセスを許可する(SSHポートは開放しない)
 resource "aws_vpc_security_group_ingress_rule" "from_cloudfront" {
   security_group_id = aws_security_group.ec2.id
-  description       = "CloudFrontからのアプリポートアクセスを許可"
+  # AWSのルールdescriptionもASCII文字のみ対応のため、説明は英語で記述する
+  description = "Allow app port access from CloudFront"
 
   prefix_list_id = data.aws_ec2_managed_prefix_list.cloudfront.id
   ip_protocol    = "tcp"
@@ -33,7 +35,8 @@ resource "aws_vpc_security_group_ingress_rule" "from_cloudfront" {
 # SSM Agent通信・パッケージ取得等のためインターネットへの全outboundを許可する
 resource "aws_vpc_security_group_egress_rule" "all_outbound" {
   security_group_id = aws_security_group.ec2.id
-  description       = "全outboundを許可(SSM通信・パッケージ取得等のため)"
+  # AWSのルールdescriptionもASCII文字のみ対応のため、説明は英語で記述する
+  description = "Allow all outbound (for SSM communication, package retrieval, etc.)"
 
   cidr_ipv4   = "0.0.0.0/0"
   ip_protocol = "-1"
