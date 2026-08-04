@@ -101,3 +101,31 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
   - publicリポジトリでIaC資材を管理する前提として、`.gitignore`に`*.tfvars`を追加、
     `terraform validate`・`tflint`・`checkov`をCIに組み込み、PR時に自動lintを走らせる方針。
     access_key/secret_key/password等の秘匿情報混入の有無は、マージ時に必ずレビューする。
+
+### issue #29: Terraform基盤（VPC / EC2 / Security Group / IAM Role）構築
+
+- issue: https://github.com/freedomRemains/taskall-v2/issues/29
+- PR: https://github.com/freedomRemains/taskall-v2/pull/31
+- `documents/design/2000007_aws_build_up.md`（issue #27）で検討したTerraform構成のうち、
+  VPC / EC2 / Security Group / IAM Roleの4モジュールを`infra/terraform`配下に実装した。
+  CloudFront / ACM / Route53 / WAFは本issueのスコープ外で、別issueにて後続対応する。
+- ディレクトリ構成: `infra/terraform/bootstrap`（state管理用S3+DynamoDB Lock、local state）、
+  `infra/terraform/prod`（VPC/EC2/SG/IAM Roleをmodules経由で構築するroot module）、
+  `infra/terraform/modules/{vpc,security_group,iam_ec2_role,ec2}`。
+- 手順は`documents/procedure/3000021_terraform.md`にまとめた
+  （bootstrap実行 → prod用`backend.conf`作成 → prod実行 → destroy時は逆順）。
+- Security Group（CloudFront管理プレフィックスリスト`com.amazonaws.global.cloudfront.origin-facing`
+  のみ許可）はEC2への直アクセス・SSHを禁止し、SSM Session Manager経由でのみ運用操作を行う構成。
+- 実装・動作検証時に判明した留意点:
+  - AWSの`aws_security_group.description`・`aws_vpc_security_group_ingress_rule`/
+    `egress_rule`の`description`は、EC2 APIの仕様上**ASCII文字のみ対応**（日本語等の
+    非ASCII文字を入れると`InvalidParameterValue`エラーになる）。該当箇所は英語表記とし、
+    日本語の説明はコメントとして別途記載する（`modules/security_group/main.tf`）。
+    一方、Terraform変数/output用の`description`（`variables.tf`/`outputs.tf`側）は
+    AWSに送信されないメタ情報のため、日本語のままで問題ない。
+  - ドメイン取得先の変更に伴い、`documents/rules/1000002_issue_points.md`（issue #27の節）
+    ・`documents/design/2000007_aws_build_up.md`の取得予定ドメインを
+    「www.taskall-v2.co.jp」から「taskall-v2.com」に修正済み。Route53での新規取得は完了済み。
+  - `prod`構成の`apply`ではCloudFrontを構築しないため、取得済みドメインはこの時点では
+    まだ使用しない（EC2にはElastic IPで直接アクセスする状態）。ドメインが実際に
+    紐付くのはCloudFront/ACM/Route53を構築する後続issue対応時。
