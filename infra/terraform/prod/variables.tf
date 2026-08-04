@@ -21,3 +21,9 @@ variable "instance_type" {
   type        = string
   default     = "t4g.small"
 }
+
+variable "domain_name" {
+  description = "Route53で取得済みのドメイン名(CloudFrontのカスタムドメイン・ACM証明書に使用)"
+  type        = string
+  default     = "taskall-v2.com"
+}

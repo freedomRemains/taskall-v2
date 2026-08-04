@@ -20,6 +20,13 @@ provider "aws" {
   region = var.region
 }
 
+# ACM証明書(CloudFront用)・WAFv2(CLOUDFRONT scope)はAWSの仕様上us-east-1リージョンでのみ
+# 作成可能なため、専用のprovider aliasを用意する(EC2/VPC等は引き続き var.region で作成する)。
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+}
+
 module "vpc" {
   source = "../modules/vpc"
 
@@ -48,4 +55,45 @@ module "ec2" {
   security_group_id     = module.security_group.security_group_id
   instance_profile_name = module.iam_ec2_role.instance_profile_name
   instance_type         = var.instance_type
+}
+
+# ACM証明書のDNS検証に、取得済みドメインの既存Hosted Zoneを参照する必要があるため、
+# 先にHosted ZoneのみをRoute53モジュールから取得する(Aliasレコード自体はCloudFront構築後に作成)。
+module "route53_zone" {
+  source = "../modules/route53"
+
+  domain_name               = var.domain_name
+  cloudfront_domain_name    = module.cloudfront.domain_name
+  cloudfront_hosted_zone_id = module.cloudfront.hosted_zone_id
+}
+
+module "acm" {
+  source = "../modules/acm"
+  providers = {
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  project_name   = var.project_name
+  domain_name    = var.domain_name
+  hosted_zone_id = module.route53_zone.zone_id
+}
+
+module "waf" {
+  source = "../modules/waf"
+  providers = {
+    aws.us_east_1 = aws.us_east_1
+  }
+
+  project_name = var.project_name
+}
+
+module "cloudfront" {
+  source = "../modules/cloudfront"
+
+  project_name        = var.project_name
+  domain_name         = var.domain_name
+  origin_domain_name  = module.ec2.public_ip
+  origin_port         = var.app_port
+  acm_certificate_arn = module.acm.certificate_arn
+  web_acl_arn         = module.waf.web_acl_arn
 }
