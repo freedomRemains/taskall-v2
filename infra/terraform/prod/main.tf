@@ -57,12 +57,14 @@ module "ec2" {
   instance_type         = var.instance_type
 }
 
-# ACM証明書のDNS検証に、取得済みドメインの既存Hosted Zoneを参照する必要があるため、
-# 先にHosted ZoneのみをRoute53モジュールから取得する(Aliasレコード自体はCloudFront構築後に作成)。
+# ACM証明書のDNS検証・CloudFrontオリジン用Aレコードに、取得済みドメインの既存Hosted Zoneを
+# 参照する必要があるため、先にRoute53モジュールを呼び出す(ドメイン頂点へのAliasレコードのみ
+# CloudFront構築後の値に依存する)。
 module "route53_zone" {
   source = "../modules/route53"
 
   domain_name               = var.domain_name
+  ec2_public_ip             = module.ec2.public_ip
   cloudfront_domain_name    = module.cloudfront.domain_name
   cloudfront_hosted_zone_id = module.cloudfront.hosted_zone_id
 }
@@ -92,7 +94,9 @@ module "cloudfront" {
 
   project_name        = var.project_name
   domain_name         = var.domain_name
-  origin_domain_name  = module.ec2.public_ip
+  # CloudFrontのカスタムオリジンにIPアドレスを直接指定するとAWS API側でエラーになるため、
+  # module.route53_zoneで作成したDNS名(origin.<domain_name>)経由でEC2のElastic IPを参照する
+  origin_domain_name  = module.route53_zone.origin_domain_name
   origin_port         = var.app_port
   acm_certificate_arn = module.acm.certificate_arn
   web_acl_arn         = module.waf.web_acl_arn

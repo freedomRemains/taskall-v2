@@ -9,7 +9,7 @@ variable "domain_name" {
 }
 
 variable "origin_domain_name" {
-  description = "オリジンとなるEC2のElastic IP(パブリックIP)"
+  description = "オリジンのDNS名(CloudFrontの仕様上IPアドレス直接指定不可のため、EC2のElastic IPを指すDNS名を渡すこと)"
   type        = string
 }
 

@@ -7,6 +7,20 @@ data "aws_route53_zone" "primary" {
   private_zone = false
 }
 
+# CloudFrontのカスタムオリジンにはIPアドレスを直接指定できない(AWS API制約: InvalidArgument
+# "The parameter origin name cannot be an IP address.")ため、EC2のElastic IPを指す専用の
+# Aレコードを作成し、CloudFront側はこのDNS名をオリジンとして参照する。
+# [許容リスク(誤検知): CKV2_AWS_23] Elastic IPは静的なIPアドレス値であり、Route53のalias機能で
+# 参照できるAWSリソース(ELB/CloudFront等)のARNを持たないため、checkovが要求する
+# 「AWSリソースへの直接アタッチ」を満たせない(EIP宛のAレコードでは構造上検知不可能な誤検知)。
+resource "aws_route53_record" "origin" {
+  zone_id = data.aws_route53_zone.primary.zone_id
+  name    = "${var.origin_subdomain}.${var.domain_name}"
+  type    = "A"
+  ttl     = 300
+  records = [var.ec2_public_ip]
+}
+
 # CloudFrontへのAliasレコード(Aレコード)。CloudFrontはグローバルなエッジロケーションを
 # 持つためNS/TTLの概念を使わないAliasレコードで参照する(通常のCNAMEより高速かつ無料)。
 resource "aws_route53_record" "apex_a" {
