@@ -18,7 +18,7 @@ resource "aws_wafv2_web_acl" "cloudfront" {
   provider = aws.us_east_1
 
   name        = "${var.project_name}-cloudfront-waf"
-  description = "Minimum WAF rules for CloudFront (Core + SQLi/XSS + IP rate limit)"
+  description = "Minimum WAF rules for CloudFront - Core, SQLi/XSS, IP rate limit"
   scope       = "CLOUDFRONT"
 
   default_action {

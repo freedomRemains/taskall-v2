@@ -92,7 +92,7 @@ module "cloudfront" {
 
   project_name        = var.project_name
   domain_name         = var.domain_name
-  origin_domain_name  = module.ec2.public_ip
+  origin_domain_name  = "www.taskall-v2.com"
   origin_port         = var.app_port
   acm_certificate_arn = module.acm.certificate_arn
   web_acl_arn         = module.waf.web_acl_arn
