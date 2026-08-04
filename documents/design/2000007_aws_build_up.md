@@ -28,6 +28,66 @@
 
 ---
 
+## 初期構築の全体像（手動作業とIaC/スクリプトの役割分担）
+
+- 本節は[issue #29](https://github.com/freedomRemains/taskall-v2/issues/29)での指摘を受けて追記した。
+  「何を、どうすると、どうなるか」を初見の担当者でも追えるよう、AWS環境構築にあたって
+  **初回のみ人手で行う必要がある事項**と、**Terraform／スクリプトが自動的に担う事項**を
+  切り分けて示す。
+- ここに挙げるのは、本資料（本issue #27での検討結果）の記載内容から判別できる範囲の事項のみ。
+  各後続issue（「後続issueの分割案」節参照）で個別に判明した手動手順は、各issue対応時に
+  本節へ追記していく運用とする。
+
+### 全体の流れ
+
+```
+1. AWSアカウントの契約・ルートアカウントログイン           … 手動(初回のみ)
+2. Terraform実行用の一時IAMクレデンシャル発行                … 手動(初回のみ、構築完了後に削除)
+3. ローカル環境へのTerraform/AWS CLIインストール・認証設定  … 手動(初回のみ)
+4. Terraform bootstrap構成の実行(state管理用S3+DynamoDB)    … 手動実行(terraform apply)
+5. Route53でのドメイン新規取得                              … 手動(初回のみ)
+6. Terraform prod構成の実行(VPC/EC2/SG/IAM Role等)          … 手動実行(terraform apply)
+   └ 上記6で構築される個々のAWSリソース定義自体は           … IaC(Terraformコード)で管理
+7. GitHub Actions CI/CD・EC2側デプロイスクリプトの動作       … 自動(CI/CD構築後は人手不要)
+```
+
+- 4・6は「人がコマンドを実行するタイミングは手動」だが、「構築されるリソースの内容」は
+  Terraformコードにより再現可能な形でIaC管理されている。この違いを区別して読むこと。
+- 1〜5は、Terraformコードや将来のGitHub Actions設定だけでは代替できない、**運用者による
+  手作業が恒久的に残る事項**である。
+
+### 初回のみ必要となる手動手順の詳細
+
+- **AWSアカウントの契約・ルートアカウントログイン**
+  - Terraformを含むあらゆるAWS操作の大前提であり、手作業の必要がある。
+- **Terraform実行用の一時IAMクレデンシャルの発行**
+  - `documents/rules`等には未記載だが、本資料「publicリポジトリでのIaC資材管理の前提」節の
+    通り、AWS環境構築時は一時的なクレデンシャルを発行し、構築完了後は直ちに削除する
+    （再利用もしない）方針としている。
+  - このクレデンシャルは、運用者がローカル環境で`terraform apply`を実行する際に
+    `aws configure`等で設定するものであり、GitHub Actions用のOIDC連携（後述）とは別物である。
+    OIDC連携はCI/CDが自動でAWSにアクセスするための仕組みだが、こちらは**人が手元でTerraformを
+    実行するための一時的な認証情報**である。
+  - IAMユーザ自体の作成・必要な権限（VPC/EC2/IAM/S3/DynamoDB等の操作権限）の付与は、
+    AWSアカウント契約直後にはTerraformで管理するリソースが何も存在しないため、
+    手動（AWSマネジメントコンソールまたはAWS CLI）で行う必要がある。
+- **ローカル環境へのTerraform・AWS CLIインストール、認証情報設定**
+  - `documents/procedure/3000021_terraform.md`の「前提ツール」節に従い、運用者の
+    ローカル環境に一度だけセットアップする。
+- **Terraform bootstrap構成の実行**
+  - `infra/terraform/bootstrap`は、state管理用のS3バケット・DynamoDB Lockテーブル自体を
+    構築するため、`prod`構成のようにS3バックエンドを使えない（stateを保管する場所自体を
+    作る構成のため）。そのため`terraform apply`の実行は、他のTerraform構成同様に手動で
+    行うが、bootstrap自体はプロジェクトを通じて最初の1回のみ実行すればよい。
+  - 詳細な実行手順は`documents/procedure/3000021_terraform.md`を参照。
+- **Route53でのドメイン新規取得**
+  - 本資料「AWS構成」節の通り、ドメイン ~~「www.taskall-v2.co.jp」~~ 「taskall-v2.com」 はAWS Route53で新規取得する
+    想定だが、Terraformで管理するのはRoute53 Hosted Zoneのみであり、ドメイン取得自体は
+    AWSマネジメントコンソールから手動で行う（Terraformのaws_route53_zoneリソースは、
+    取得済みドメインに対するHosted Zoneの管理のみを担う）。
+
+---
+
 ## AWS構成
 
 ### 構成概要
@@ -36,7 +96,7 @@
 利用者
   │ HTTPS
   ▼
-Route53 (Hosted Zoneのみ管理。ドメイン「www.taskall-v2.co.jp」自体の取得は手動)
+Route53 (Hosted Zoneのみ管理。ドメイン 「taskall-v2.com」 自体の取得は手動)
   │
   ▼
 CloudFront + ACM証明書（無料・自動更新）
