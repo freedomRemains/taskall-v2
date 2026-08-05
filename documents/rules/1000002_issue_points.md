@@ -189,7 +189,7 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     ポーリングし新旧差分を検知する想定（EC2側の実装は本issueのスコープ外、別issueで対応）。
   - `infra/terraform/prod/main.tf`に上記2モジュールを組み込み、`artifact_bucket_name`・
     `github_actions_role_arn`をoutputsに追加した。両出力値はGitHub側のRepository Variableとして
-    手動設定が必要（`documents/procedure/3000022_github_actions_cicd.md`参照）。
+    手動設定が必要（`documents/procedure/3000031_github_actions_cicd.md`参照）。
 - 追加したGitHub Actionsワークフロー:
   - `.github/workflows/cicd.yml`: `main`ブランチへの`push`（develop→mainマージ）のみで起動。
     `build-and-test`ジョブでGradleビルド・全テストを実行し、`upload-to-s3`ジョブで

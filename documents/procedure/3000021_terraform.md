@@ -18,7 +18,7 @@
   [issue #34](https://github.com/freedomRemains/taskall-v2/issues/34)（いずれも
   [issue #27](https://github.com/freedomRemains/taskall-v2/issues/27)の後続issue）に対応します。
 - GitHub Actions CI/CDワークフロー自体の説明・GitHub側の設定手順は
-  [documents/procedure/3000022_github_actions_cicd.md](3000022_github_actions_cicd.md)を参照してください。
+  [documents/procedure/3000031_github_actions_cicd.md](3000031_github_actions_cicd.md)を参照してください。
 
 ---
 
@@ -111,7 +111,7 @@ terraform apply
   AssumeRoleする際に指定するIAM Role ARN）の出力値も確認できます。この2つの値は、
   GitHub Actionsワークフローが参照できるよう、GitHub側のRepository Variableとして
   手動で設定する必要があります（設定手順は
-  [documents/procedure/3000022_github_actions_cicd.md](3000022_github_actions_cicd.md)参照）。
+  [documents/procedure/3000031_github_actions_cicd.md](3000031_github_actions_cicd.md)参照）。
 
 ---
 

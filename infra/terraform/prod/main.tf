@@ -92,8 +92,8 @@ module "waf" {
 module "cloudfront" {
   source = "../modules/cloudfront"
 
-  project_name        = var.project_name
-  domain_name         = var.domain_name
+  project_name = var.project_name
+  domain_name  = var.domain_name
   # CloudFrontのカスタムオリジンにIPアドレスを直接指定するとAWS API側でエラーになるため、
   # module.route53_zoneで作成したDNS名(origin.<domain_name>)経由でEC2のElastic IPを参照する
   origin_domain_name  = module.route53_zone.origin_domain_name
