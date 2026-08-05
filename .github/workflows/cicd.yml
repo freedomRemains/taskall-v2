@@ -40,7 +40,7 @@ jobs:
           if [ "$MOD" -eq 3 ]; then PAYLOAD="${PAYLOAD}="; fi
           echo "${PAYLOAD}" | tr '_-' '/+' | base64 -d | jq '{aud, sub, repository, ref, ref_type, event_name, actor}'
 
-
+  build-and-test:
     name: Gradleビルド・全テスト実行
     runs-on: ubuntu-latest
     steps:
