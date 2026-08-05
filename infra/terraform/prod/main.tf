@@ -119,8 +119,9 @@ module "artifact_bucket" {
 module "github_oidc_role" {
   source = "../modules/github_oidc_role"
 
-  project_name        = var.project_name
-  github_repository   = var.github_repository
-  github_branch       = var.github_branch
-  artifact_bucket_arn = module.artifact_bucket.bucket_arn
+  project_name               = var.project_name
+  github_repository_id       = var.github_repository_id
+  github_repository_owner_id = var.github_repository_owner_id
+  github_branch              = var.github_branch
+  artifact_bucket_arn        = module.artifact_bucket.bucket_arn
 }
