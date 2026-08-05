@@ -28,10 +28,21 @@ variable "domain_name" {
   default     = "taskall-v2.com"
 }
 
-variable "github_repository" {
-  description = "GitHub Actions OIDC連携でAssumeRoleを許可する対象リポジトリ(\"<owner>/<repo>\"形式)"
+# GitHubはOrganization/リポジトリのリネームに伴うなりすまし対策として、OIDCトークンのsubクレームを
+# リネームの影響を受ける文字列ではなく不変ID付き形式に変更する場合があるため、信頼ポリシーの条件には
+# 文字列(owner/repo)ではなく不変ID(repository_id/repository_owner_id)を使用する。値は
+# `gh api repos/<owner>/<repo> --jq '.id,.owner.id'`、またはActions実行ログのOIDCトークンの
+# repository_id/repository_owner_idクレームで確認できる。
+variable "github_repository_id" {
+  description = "GitHub ActionsからのAssumeRoleを許可する対象リポジトリの不変ID(OIDCトークンのrepository_idクレーム)"
   type        = string
-  default     = "freedomRemains/taskall-v2"
+  default     = "1313485636"
+}
+
+variable "github_repository_owner_id" {
+  description = "GitHub ActionsからのAssumeRoleを許可する対象Organization/ユーザの不変ID(OIDCトークンのrepository_owner_idクレーム)"
+  type        = string
+  default     = "188358132"
 }
 
 variable "github_branch" {

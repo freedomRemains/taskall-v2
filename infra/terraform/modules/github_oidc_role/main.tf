@@ -40,8 +40,13 @@ resource "aws_iam_openid_connect_provider" "github_actions" {
 }
 
 # GitHub ActionsがAssumeRoleWithWebIdentityでAssumeできるRole。
-# subクレームを対象リポジトリ・対象ブランチ(main)のみに限定し、他リポジトリ・他ブランチからの
-# AssumeRoleを禁止する(feature/developブランチのCI実行では本Roleを使用しない設計のため)。
+# GitHubはOrganization/リポジトリのリネームによるなりすまし対策として、リネーム履歴のある
+# リポジトリではsubクレームを"repo:owner@<owner_id>/repo@<repo_id>:ref:..."という不変ID付き
+# 形式に変更する場合があり、単純な"repo:owner/repo:ref:..."文字列比較では一致しなくなる
+# (実際にAssumeRoleWithWebIdentityが"Not authorized"で失敗する不具合として発覚)。
+# そのため、リネームの影響を受けないrepository_id/repository_owner_idクレーム(不変ID)を条件に
+# 使用し、対象ブランチ(main)のみに限定する。他リポジトリ・他ブランチからのAssumeRoleを禁止する
+# (feature/developブランチのCI実行では本Roleを使用しない設計のため)。
 data "aws_iam_policy_document" "github_actions_assume_role" {
   statement {
     effect  = "Allow"
@@ -59,9 +64,21 @@ data "aws_iam_policy_document" "github_actions_assume_role" {
     }
 
     condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:repository_id"
+      values   = [var.github_repository_id]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:repository_owner_id"
+      values   = [var.github_repository_owner_id]
+    }
+
+    condition {
       test     = "StringLike"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${var.github_repository}:ref:refs/heads/${var.github_branch}"]
+      values   = ["repo:*:ref:refs/heads/${var.github_branch}"]
     }
   }
 }
