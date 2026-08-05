@@ -169,3 +169,36 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
   - checkovの新規指摘（`CKV_AWS_374`/`CKV_AWS_305`/`CKV_AWS_310`/`CKV_AWS_86`/
     `CKV2_AWS_32`/`CKV2_AWS_31`/`CKV2_AWS_47`(誤検知)/`CKV2_AWS_23`(誤検知)）は、
     費用最小方針・モジュール境界による誤検知として、該当ファイル内にコメントで理由を明記した。
+
+### issue #34: GitHub Actions CI/CD構築（OIDC設定含む）
+
+- issue: https://github.com/freedomRemains/taskall-v2/issues/34
+- PR: https://github.com/freedomRemains/taskall-v2/pull/35
+- issue #27で検討したCI/CDフロー（develop→mainマージ時のみ起動、OIDC連携、S3への
+  アーティファクトアップロードまでをCI/CD側が担い、実際のデプロイはEC2側のポーリングに任せる）を
+  実装した。
+- 追加したTerraformモジュール:
+  - `infra/terraform/modules/github_oidc_role`: `token.actions.githubusercontent.com`を
+    Issuerとする`aws_iam_openid_connect_provider`と、AssumeRole用の`aws_iam_role`を追加。
+    信頼ポリシーの`sub`クレームを`repo:<owner>/<repo>:ref:refs/heads/main`に限定し、
+    feature/developブランチや他リポジトリからのAssumeRoleを禁止。付与する権限もアーティファクト
+    バケットへの`s3:PutObject`/`s3:GetObject`/`s3:ListBucket`のみに絞った最小権限とした。
+  - `infra/terraform/modules/artifact_bucket`: CI/CDアーティファクト(jar)保存用のS3バケット。
+    `bootstrap`のstate用バケットと同様、バージョニング・SSE-S3暗号化・パブリックアクセス
+    ブロック・旧バージョン自動削除ライフサイクルを設定。EC2側は本バケットのバージョンIDを
+    ポーリングし新旧差分を検知する想定（EC2側の実装は本issueのスコープ外、別issueで対応）。
+  - `infra/terraform/prod/main.tf`に上記2モジュールを組み込み、`artifact_bucket_name`・
+    `github_actions_role_arn`をoutputsに追加した。両出力値はGitHub側のRepository Variableとして
+    手動設定が必要（`documents/procedure/3000022_github_actions_cicd.md`参照）。
+- 追加したGitHub Actionsワークフロー:
+  - `.github/workflows/cicd.yml`: `main`ブランチへの`push`（develop→mainマージ）のみで起動。
+    `build-and-test`ジョブでGradleビルド・全テストを実行し、`upload-to-s3`ジョブで
+    `aws-actions/configure-aws-credentials`によるOIDC認証を行いS3へjarをアップロードする
+    （`permissions: id-token: write`が必須）。
+  - `.github/workflows/terraform-lint.yml`: `infra/terraform/**`を変更するPull Requestに対し、
+    `terraform fmt -check` → `terraform validate`（bootstrap/prod個別に`-backend=false`）→
+    `tflint` → `checkov`の順でIaC静的チェックを実行する（issue #27の「防護措置・予防措置」節に
+    対応）。
+- Terraform CLI自体がAI作業環境（サンドボックス）に未インストールのため、`terraform apply`に
+  よる実機構築・ワークフローの実機起動確認は未実施。`checkov`のみローカルで実行し、新規追加
+  リソースの指摘が既存の`bootstrap`バケットと同種の許容済みリスクのみであることを確認した。
