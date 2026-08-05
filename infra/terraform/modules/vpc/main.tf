@@ -1,6 +1,17 @@
 # 費用最小構成のため、NAT Gateway・複数AZ・Private Subnetは持たず、
 # EC2を配置するPublic Subnet 1つのみのシンプルなVPCを構築する。
 
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
 # [許容リスク: CKV2_AWS_11] 監視(VPC Flow Logs含む)は初期構築のスコープ外とし、documents/design/2000007_aws_build_up.mdの通り別issueで将来検討する
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr

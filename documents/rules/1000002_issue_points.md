@@ -199,9 +199,12 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     `terraform fmt -check` → `terraform validate`（bootstrap/prod個別に`-backend=false`）→
     `tflint` → `checkov`の順でIaC静的チェックを実行する（issue #27の「防護措置・予防措置」節に
     対応）。
-- Terraform CLI自体がAI作業環境（サンドボックス）に未インストールのため、`terraform apply`に
-  よる実機構築・ワークフローの実機起動確認は未実施。`checkov`のみローカルで実行し、新規追加
-  リソースの指摘が既存の`bootstrap`バケットと同種の許容済みリスクのみであることを確認した。
+- AI作業環境（サンドボックス）にはTerraform CLI・tflint・checkovいずれも標準では未インストール
+  だったため、`wget`でzipを取得し`python3`の`zipfile`モジュールで展開する方法
+  （`curl`/`unzip`が利用不可なため）でTerraform CLI(1.5.7)・tflint(0.64.0)を一時インストールし、
+  `terraform fmt`/`terraform validate`/`tflint --recursive`をローカルで実行できるようにした
+  （`checkov`は元々インストール済み）。`terraform apply`による実機構築・ワークフローの実機起動
+  確認は環境上未実施。
 - PRレビュー指摘への対応:
   - 手順書`documents/procedure/3000022_github_actions_cicd.md`は、手順書が10番飛ばし採番
     （3000001, 3000011, 3000021, ...）である規約に反していたため、
@@ -220,3 +223,15 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     チェーンを都度取得し、そのSHA1サムプリントを動的に使用する方式に変更した
     （`terraform init`・`terraform validate`をAI作業環境で実行し、`hashicorp/tls`プロバイダの
     追加インストール・`aws_iam_openid_connect_provider`の生成が成功することを確認済み）。
+  - CI上の`tflint --recursive`実行結果から、`terraform_required_version`（`required_version`
+    未設定）・`terraform_required_providers`（`aws`プロバイダのバージョン制約未設定）の警告が
+    20件発生していたことが判明。これは本issueで新規追加した`artifact_bucket`/`github_oidc_role`
+    だけでなく、issue #29・#32で構築済みの`vpc`/`security_group`/`iam_ec2_role`/`ec2`/`acm`/
+    `waf`/`cloudfront`/`route53`の全モジュールが、モジュール単体では`required_version`・
+    プロバイダバージョン制約を持たない構成だったために発生していた（ルート`prod`/`bootstrap`側は
+    元々設定済みだったが、tflintは各モジュールディレクトリ単位でもこれらの設定を要求するため）。
+    本issueで新設した`terraform-lint.yml`により初めてtflintがCIで実行されるようになったため、
+    既存モジュール分もあわせて全モジュールに`required_version = ">= 1.5.0"`・
+    `required_providers.aws.version = "~> 5.0"`（`acm`/`waf`は既存の`configuration_aliases`と
+    併記）を追加し、20件の警告すべてを解消した。AI作業環境にtflint(0.64.0)を追加インストールし
+    `tflint --recursive --chdir infra/terraform`が0件で完了することを確認済み。

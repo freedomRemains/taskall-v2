@@ -3,6 +3,17 @@
 # (com.amazonaws.global.cloudfront.origin-facing)は自プロジェクトのCloudFront構築有無に
 # 関わらず利用可能なため、先行して参照できる。
 
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
 data "aws_ec2_managed_prefix_list" "cloudfront" {
   name = "com.amazonaws.global.cloudfront.origin-facing"
 }

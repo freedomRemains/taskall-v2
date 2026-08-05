@@ -1,6 +1,17 @@
 # EC2にSSM Session Manager経由でのみ運用操作を行うためのIAM Role。
 # SSHポートは一切開放しないため、本Roleが唯一の運用アクセス経路となる。
 
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
 data "aws_iam_policy_document" "ec2_assume_role" {
   statement {
     effect  = "Allow"

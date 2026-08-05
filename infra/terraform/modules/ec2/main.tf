@@ -1,6 +1,17 @@
 # 費用最小構成に基づき、Gravitonインスタンス(t4g.small)・Amazon Linux 2023(arm64)を使用する。
 # AMIはSSM Parameter Store経由で常に最新のものを自動取得する。
 
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
 data "aws_ssm_parameter" "al2023_arm64" {
   name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64"
 }

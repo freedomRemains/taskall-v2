@@ -2,6 +2,17 @@
 # EC2側はsystemdタイマーで本バケットを定期的にポーリングし、新旧差分検知後にデプロイする
 # (EC2側のポーリング処理自体は本モジュールの対象外で、後続issueにて別途実装する)。
 
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
 # アカウントIDを取得し、S3バケット名の一意性を保証するために利用する
 data "aws_caller_identity" "current" {}
 

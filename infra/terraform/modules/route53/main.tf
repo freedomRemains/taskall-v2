@@ -2,6 +2,17 @@
 # Route53ドメイン取得時に自動作成されたHosted Zoneをdata sourceとして参照する。
 # (Terraformで新規作成するとHosted Zoneが重複してしまうため、既存のものを参照する方針)
 
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
 data "aws_route53_zone" "primary" {
   name         = "${var.domain_name}."
   private_zone = false
