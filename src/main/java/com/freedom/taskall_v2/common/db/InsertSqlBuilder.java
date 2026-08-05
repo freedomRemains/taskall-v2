@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import com.freedom.taskall_v2.common.exception.BusinessRuleViolationException;
+import com.freedom.taskall_v2.common.exception.ApplicationInternalException;
 import com.freedom.taskall_v2.common.util.MsgUtil;
 
 /**
@@ -103,6 +103,7 @@ public class InsertSqlBuilder {
                 return columnDef.get("TYPE_NAME");
             }
         }
-        throw new BusinessRuleViolationException(msg.get("msg.err.common.db.columnDefForColumnNotFound", columnName));
+        // TBL_DEF資材自体の不整合であり、システム運用自体が不可能な状態のため、システムエラーとする
+        throw new ApplicationInternalException(msg.get("msg.err.common.db.columnDefForColumnNotFound", columnName));
     }
 }

@@ -64,7 +64,7 @@ public class CreateRecordService implements ScriptElementService {
         ObjectNode context = readAsObjectNode(contextJson);
         String tableName = context.path("tableName").asString("");
         if (tableName.isBlank()) {
-            throw new BusinessRuleViolationException(msg.get("msg.err.web.requiredParamMissing", "tableName"));
+            throw new BusinessRuleViolationException(msg.get("msg.warn.web.requiredParamMissing", "tableName"));
         }
 
         // テーブル名がTBL_DEFに実在しない場合はSQLへ混入させず業務エラーとする

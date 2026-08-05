@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 
 import com.freedom.taskall_v2.common.exception.ApplicationInternalException;
-import com.freedom.taskall_v2.common.exception.BusinessRuleViolationException;
 import com.freedom.taskall_v2.common.util.MsgUtil;
 
 /**
@@ -22,17 +21,28 @@ import com.freedom.taskall_v2.common.util.MsgUtil;
  * （1レコード＝{@code LinkedHashMap}、ヘッダの記述順を維持）で返却します。
  * 空行はスキップします。値が列数より少ない行は、不足分を空文字列として扱います。
  * </p>
+ *
+ * <p>
+ * 各値は{@link TsvValueEscaper#decode(String)}で復元します。{@link TsvTableFileWriter}が
+ * 書き込み時にCR/LF/タブをマーカー文字列へ変換しているため、その逆変換を行います。
+ * </p>
  */
 public class TsvTableFileReader {
 
     private final MsgUtil msg;
+    private final TsvValueEscaper tsvValueEscaper;
 
     public TsvTableFileReader() {
         this(new MsgUtil());
     }
 
     public TsvTableFileReader(MsgUtil msg) {
+        this(msg, new TsvValueEscaper(msg));
+    }
+
+    public TsvTableFileReader(MsgUtil msg, TsvValueEscaper tsvValueEscaper) {
         this.msg = msg;
+        this.tsvValueEscaper = tsvValueEscaper;
     }
 
     /**
@@ -48,8 +58,9 @@ public class TsvTableFileReader {
     public ArrayList<LinkedHashMap<String, String>> read(Path filePath) {
 
         // ファイルの存在を確認したうえで、共通のInputStream読み込み処理へ委譲する
+        // (資材ファイル自体の欠落であり、システム運用自体が不可能な状態のため、システムエラーとする)
         if (!Files.exists(filePath)) {
-            throw new BusinessRuleViolationException(msg.get("msg.err.common.db.fileNotFound", filePath));
+            throw new ApplicationInternalException(msg.get("msg.err.common.db.fileNotFound", filePath));
         }
         try (InputStream inputStream = Files.newInputStream(filePath)) {
             return read(inputStream);
@@ -83,9 +94,11 @@ public class TsvTableFileReader {
     private ArrayList<LinkedHashMap<String, String>> readRecords(BufferedReader reader) throws IOException {
 
         // 先頭行をヘッダ行として読み込み、列名一覧を確定する
+        // (ヘッダ行が無いのは資材ファイル自体の不整合であり、システム運用自体が不可能な状態のため、
+        //  システムエラーとする)
         String headerLine = reader.readLine();
         if (headerLine == null) {
-            throw new BusinessRuleViolationException(msg.get("msg.err.common.db.headerRowNotFound"));
+            throw new ApplicationInternalException(msg.get("msg.err.common.db.headerRowNotFound"));
         }
         String[] headers = headerLine.split("\t", -1);
 
@@ -99,7 +112,8 @@ public class TsvTableFileReader {
             String[] values = line.split("\t", -1);
             LinkedHashMap<String, String> record = new LinkedHashMap<>();
             for (int i = 0; i < headers.length; i++) {
-                record.put(headers[i], i < values.length ? values[i] : "");
+                // 書き込み時にマーカー文字列へ変換されたCR/LF/タブを、元の文字へ復元する
+                record.put(headers[i], i < values.length ? tsvValueEscaper.decode(values[i]) : "");
             }
             records.add(record);
         }

@@ -44,7 +44,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BusinessRuleViolationException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public String handleBusinessRuleViolation(BusinessRuleViolationException e) {
-        logger.error(msg.get("msg.err.web.businessRuleViolation", e.getMessage()), e);
+        // 業務ルール違反はシステム自体の運用に支障はないため、警告レベルで記録する
+        logger.warn(msg.get("msg.warn.web.businessRuleViolation", e.getMessage()), e);
         return ERROR_VIEW;
     }
 

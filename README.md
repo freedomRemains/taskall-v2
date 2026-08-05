@@ -19,7 +19,7 @@
 
 ## ドキュメントの管理方法
 
-- プロジェクト直下に次のようなフォルダ構成を作成します。
+- プロジェクト直下に、次のようなフォルダ構成を作成します。
 
 ```
 documents　ドキュメント配置先フォルダ
@@ -44,6 +44,32 @@ documents　ドキュメント配置先フォルダ
 
 ---
 
+### インフラ資材について
+
+- プロジェクト直下に、次のようなフォルダ構成を作成します。
+
+```
+infra　インフラ資材配置先フォルダ
+　├　docker　docker資材の配置フォルダ(利用はローカル限定)
+　└　terraform　terraform資材の配置フォルダ(未作成、AWS環境作成時に追加予定)
+```
+
+- docker配下には「docker-compose.yml」を格納する。
+    - ローカルでの動作検証に利用するツールの設定を記述する想定。(利用はローカル限定)
+- terraformは現在未作成だが、AWS環境作成時にはフォルダを追加して資材を格納する予定。
+
+```
+【docker起動コマンド】
+cd [path to taskall-v2]/infra/docker
+docker compose up -d
+
+＜例＞
+cd /home/develop/taskall-v2/infra/docker
+docker compose up -d
+```
+
+---
+
 【関連リンク】
 
 - [基本設計](documents/design/2000001_base_design.md)
@@ -51,6 +77,8 @@ documents　ドキュメント配置先フォルダ
 - [実装設計](documents/design/2000003_implementation_design.md)
 - [開発環境構築手順(WSL及びdocker)](documents/procedure/3000001_wsl.md)
 - [開発環境構築手順(VSCode)](documents/procedure/3000011_vscode.md)
+- [Terraform環境構築手順](documents/procedure/3000021_terraform.md)
+- [GitHub Actions CI/CD構築手順](documents/procedure/3000031_github_actions_cicd.md)
 
 ---
 

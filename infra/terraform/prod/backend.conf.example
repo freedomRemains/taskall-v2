@@ -1,0 +1,13 @@
+# このファイルをコピーして「backend.conf」を作成し、bootstrap実行後の出力値
+# (state_bucket_name, lock_table_name)を設定してください。
+# 「terraform init -backend-config=backend.conf」のように使用します。
+#
+# バケット名・テーブル名は秘匿情報ではありませんが、bootstrap実行結果に依存し
+# 環境によって変わりうる値のため、実値を含む「backend.conf」自体は
+# .gitignoreで除外し、リポジトリには本サンプルファイルのみを含めます。
+
+bucket         = "taskallv2-terraform-state-<AWSアカウントID>"
+key            = "prod/terraform.tfstate"
+region         = "ap-northeast-1"
+dynamodb_table = "taskallv2-terraform-lock"
+encrypt        = true

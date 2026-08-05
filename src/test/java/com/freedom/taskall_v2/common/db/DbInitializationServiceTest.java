@@ -38,8 +38,10 @@ class DbInitializationServiceTest {
 
         dbInitializationService.initializeDatabase();
 
-        // 22テーブル分のDROP・CREATEと、データファイルが存在するテーブル分(673レコード)のINSERTが実行される
-        // (テーブル一覧の定義参照/データ編集リンクをURI_PATTERN経由に統一したため、URI_PATTERNが2件増え671から673へ変更)
-        verify(jdbcTemplate, times(22 + 22 + 673)).execute(anyString());
+        // 24テーブル分のDROP・CREATE（各1ステートメント）と、INSERT分（合計713ステートメント）が実行される
+        // (Task 2でLOGIN_STATUS/ACCNT_AUTH_LOCKテーブルが追加されたため、22から24へ変更)
+        // (Task 3でGNR_KEY_VALに3行追加されたため、691から694へ変更)
+        // (Task 12で二次認証画面の8ファイルに合計19行追加されたため、694から713へ変更)
+        verify(jdbcTemplate, times(24 + 24 + 713)).execute(anyString());
     }
 }

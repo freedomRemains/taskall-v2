@@ -11,6 +11,7 @@
 <body>
     <div id="mainArea" class="container">
         <form id="mainForm" method="POST">
+            <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
             <div th:each="part : ${htmlPage}">
                 <div th:replace="~{parts/10010_header :: wrapper(part=${part})}"></div>
                 <div th:replace="~{parts/10030_login :: wrapper(part=${part})}"></div>
@@ -23,7 +24,15 @@
                 <div th:replace="~{parts/10100_recordRef :: wrapper(part=${part})}"></div>
                 <div th:replace="~{parts/10110_relatedTableList :: wrapper(part=${part})}"></div>
                 <div th:replace="~{parts/10120_errMsgList :: wrapper(part=${part})}"></div>
+                <div th:replace="~{parts/10130_twoFactorAuth :: wrapper(part=${part})}"></div>
             </div>
+        </form>
+        <!--/* ログアウトボタン自体は共通ヘッダ(20010_commonHeader.html)に配置し、
+             このformは実際の送信先を保持するだけの非表示要素とする(formタグは入れ子にできないため、
+             mainForm配下のヘッダー内ボタンからHTML5のform属性で本formを参照する) */-->
+        <form th:if="${account.get(0).ACCNT_ID != '1000001'}" id="logoutForm" method="POST"
+              th:action="@{/taskall-v2/service/logout.html}" class="d-none">
+            <input type="hidden" th:if="${_csrf}" th:name="${_csrf.parameterName}" th:value="${_csrf.token}"/>
         </form>
     </div>
     <script src="/js/bootstrap.bundle.min.js"></script>

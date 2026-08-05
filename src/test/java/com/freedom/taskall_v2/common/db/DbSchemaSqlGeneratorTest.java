@@ -36,7 +36,7 @@ class DbSchemaSqlGeneratorTest {
         assertThat(Files.readString(sqlDir.resolve("CREATE_SAMPLE.sql")))
                 .contains("ID INTEGER PRIMARY KEY AUTOINCREMENT");
         assertThat(Files.readString(sqlDir.resolve("SELECT_SAMPLE.sql")))
-                .contains("SELECT ID, NAME FROM SAMPLE ORDER BY ID, NAME;");
+                .contains("SELECT ID, NAME FROM SAMPLE ORDER BY ID;");
         assertThat(Files.readString(sqlDir.resolve("INSERT_SAMPLE.sql")))
                 .contains("INSERT INTO SAMPLE (ID, NAME) VALUES (1, 'テスト');");
     }

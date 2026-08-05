@@ -11,7 +11,7 @@ import java.util.LinkedHashMap;
 
 import org.junit.jupiter.api.Test;
 
-import com.freedom.taskall_v2.common.exception.BusinessRuleViolationException;
+import com.freedom.taskall_v2.common.exception.ApplicationInternalException;
 
 class TsvTableFileReaderTest {
 
@@ -56,7 +56,7 @@ class TsvTableFileReaderTest {
         InputStream inputStream = toInputStream("");
 
         assertThatThrownBy(() -> tsvTableFileReader.read(inputStream))
-                .isInstanceOf(BusinessRuleViolationException.class);
+                .isInstanceOf(ApplicationInternalException.class);
     }
 
     @Test
@@ -65,7 +65,7 @@ class TsvTableFileReaderTest {
         java.nio.file.Path notExistFile = tempDir.resolve("NOT_EXIST.txt");
 
         assertThatThrownBy(() -> tsvTableFileReader.read(notExistFile))
-                .isInstanceOf(BusinessRuleViolationException.class);
+                .isInstanceOf(ApplicationInternalException.class);
     }
 
     @Test
@@ -77,6 +77,17 @@ class TsvTableFileReaderTest {
         ArrayList<LinkedHashMap<String, String>> records = tsvTableFileReader.read(dataFile);
 
         assertThat(records).hasSize(1);
+    }
+
+    @Test
+    void マーカー文字列はCRとLFとタブへ復元されること() {
+
+        InputStream inputStream = toInputStream("ID\tNAME\n1\ta#Yr#b#Yn#c#Yt#d\n");
+
+        ArrayList<LinkedHashMap<String, String>> records = tsvTableFileReader.read(inputStream);
+
+        assertThat(records.get(0)).containsExactly(java.util.Map.entry("ID", "1"),
+                java.util.Map.entry("NAME", "a\rb\nc\td"));
     }
 
     private InputStream toInputStream(String content) {

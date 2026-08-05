@@ -15,3 +15,16 @@ spring:
     driver-class-name: org.sqlite.JDBC
     username:
     password:
+
+  # メール送信設定(本番はSMTPサーバの接続情報を環境変数で注入する)
+  mail:
+    host: ${TASKALL_MAIL_HOST}
+    port: ${TASKALL_MAIL_PORT:587}
+    username: ${TASKALL_MAIL_USERNAME}
+    password: ${TASKALL_MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true

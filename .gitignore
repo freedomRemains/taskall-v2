@@ -39,6 +39,24 @@ out/
 ### アプリ実行時に生成されるSQLiteのDBファイル ###
 *.db
 
+### Terraform ###
+# 秘匿情報・環境固有値を含みうるため、変数値ファイル・state・ローカルキャッシュは除外する
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+# backend.confは実値(bootstrap実行後のバケット名等)を含むため除外し、.exampleのみ管理対象とする
+backend.conf
+
 ### DBメンテナンス機能が実行時に生成する作業ディレクトリ ###
 dbmng-work/
 

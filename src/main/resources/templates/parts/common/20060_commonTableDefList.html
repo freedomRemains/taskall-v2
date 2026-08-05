@@ -1,18 +1,17 @@
-<!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
-<body>
-    <div th:fragment="body" class="1000501"
-         th:with="tableDefList=${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'tableDefList')},
-                  columnList=${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'columnList')}">
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="body" class="1000501"
+     th:with="tableDefList=${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'tableDefList')},
+              columnList=${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'columnList')}">
+    <div class="p-2">
         <div class="p-2">
-            <div class="p-2">
-                <label>
-                    <span class="form-label fw-bold"
-                          th:text="${tableDefList[0].TABLE_LOGICAL_NAME + '(' + tableDefList[0].TABLE_NAME + ')'}">table</span><br />
-                </label>
-            </div>
-            <table class="table table-bordered table-striped table-hover table-responsive text-nowrap">
-                <thead class="table-success">
+            <label>
+                <span class="form-label fw-bold"
+                      th:text="${tableDefList[0].TABLE_LOGICAL_NAME + '(' + tableDefList[0].TABLE_NAME + ')'}">table</span><br />
+            </label>
+        </div>
+        <!--/* 3列程度の短い一覧のため、テーブルをw-autoで内容幅に収めた上で中央寄せする */-->
+        <div class="d-flex justify-content-center">
+            <table class="table table-bordered table-striped table-hover table-responsive text-nowrap w-auto">
+                <thead class="table-primary">
                     <tr>
                         <th class="px-1 py-0">DB項目論理名</th>
                         <th class="px-1 py-0">DB項目物理名</th>
@@ -28,7 +27,6 @@
                 </tbody>
             </table>
         </div>
-        <input type="hidden" name="tableName" th:value="${tableDefList[0].TABLE_NAME}">
     </div>
-</body>
-</html>
+    <input type="hidden" name="tableName" th:value="${tableDefList[0].TABLE_NAME}">
+</div>

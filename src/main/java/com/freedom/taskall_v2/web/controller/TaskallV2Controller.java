@@ -58,8 +58,13 @@ public class TaskallV2Controller {
         return handleRequest(request, "GET", model);
     }
 
-    @PostMapping("/taskall-v2/service/myPage.html")
-    public String postMyPage(HttpServletRequest request, Model model) {
+    @GetMapping("/taskall-v2/service/twoFactorAuth.html")
+    public String getTwoFactorAuth(HttpServletRequest request, Model model) {
+        return handleRequest(request, "GET", model);
+    }
+
+    @PostMapping("/taskall-v2/service/twoFactorAuth.html")
+    public String postTwoFactorAuth(HttpServletRequest request, Model model) {
         return handleRequest(request, "POST", model);
     }
 
@@ -160,7 +165,10 @@ public class TaskallV2Controller {
 
         // 実行結果からセッションとModelを更新し、最後にレスポンス種別に応じたビュー名へ変換する
         storeAccountIdIfExists(request.getSession(), result);
+        clearPendingTwoFactorAccountIdIfCompleted(request.getSession(), result);
         populateModel(result, model);
+
+        model.addAttribute("pendingTwoFactorAccountId", request.getSession().getAttribute("pendingTwoFactorAccountId"));
 
         return resolveViewName(result);
     }
@@ -168,10 +176,14 @@ public class TaskallV2Controller {
     private void logRequestInfo(HttpServletRequest request) {
 
         // リクエスト属性を収集し、サーバ内で付与された値も含めて追跡できるようにする
+        // ただしSpringFramework内部で付与される属性はログを見ても有益にならないノイズのため除外する
         StringBuilder log = new StringBuilder();
         log.append("[Attributes]").append(System.lineSeparator());
         for (Enumeration<String> names = request.getAttributeNames(); names.hasMoreElements();) {
             String name = names.nextElement();
+            if (name.contains("springframework")) {
+                continue;
+            }
             log.append('\t').append(name).append(": ").append(request.getAttribute(name))
                     .append(System.lineSeparator());
         }
@@ -221,6 +233,12 @@ public class TaskallV2Controller {
             context.put("accountId", accountId);
         }
 
+        // 二段階認証(一次認証通過・二次認証待ち)中のアカウントIDをセッションから引き継ぐ
+        Object pendingTwoFactorAccountId = request.getSession().getAttribute("pendingTwoFactorAccountId");
+        if (pendingTwoFactorAccountId != null) {
+            context.put("pendingTwoFactorAccountId", (String) pendingTwoFactorAccountId);
+        }
+
         context.put("requestKind", requestKind);
         context.put("requestUri", request.getRequestURI());
         context.put("sessionId", request.getSession().getId());
@@ -236,6 +254,12 @@ public class TaskallV2Controller {
         }
 
         session.setAttribute("accountId", account.get(0).path("ACCNT_ID").asString());
+    }
+
+    private void clearPendingTwoFactorAccountIdIfCompleted(HttpSession session, JsonNode result) {
+        if (result.path("twoFactorAuthCompleted").asBoolean(false)) {
+            session.removeAttribute("pendingTwoFactorAccountId");
+        }
     }
 
     private void populateModel(JsonNode result, Model model) {

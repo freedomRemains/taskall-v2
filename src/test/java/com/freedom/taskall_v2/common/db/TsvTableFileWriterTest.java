@@ -1,6 +1,7 @@
 package com.freedom.taskall_v2.common.db;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -10,6 +11,8 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+
+import com.freedom.taskall_v2.common.exception.BusinessRuleViolationException;
 
 class TsvTableFileWriterTest {
 
@@ -53,5 +56,28 @@ class TsvTableFileWriterTest {
         row.put(key1, value1);
         row.put(key2, value2);
         return row;
+    }
+
+    @Test
+    void writeは値に含まれるCRとLFとタブをマーカー文字列へ変換して出力すること(@TempDir Path tempDir) throws Exception {
+
+        Path filePath = tempDir.resolve("ACCNT.txt");
+
+        tsvTableFileWriter.write(filePath, List.of(
+                buildRow("ACCNT_ID", "1", "ACCOUNT_NAME", "a\rb\nc\td")));
+
+        assertThat(Files.readString(filePath, StandardCharsets.UTF_8))
+                .isEqualTo("ACCNT_ID\tACCOUNT_NAME" + System.lineSeparator()
+                        + "1\ta#Yr#b#Yn#c#Yt#d" + System.lineSeparator());
+    }
+
+    @Test
+    void writeは値に変換後文字列と同じ文字列が含まれる場合は業務エラーとすること(@TempDir Path tempDir) {
+
+        Path filePath = tempDir.resolve("ACCNT.txt");
+
+        assertThatThrownBy(() -> tsvTableFileWriter.write(filePath,
+                List.of(buildRow("ACCNT_ID", "1", "ACCOUNT_NAME", "foo#Yr#bar"))))
+                .isInstanceOf(BusinessRuleViolationException.class);
     }
 }

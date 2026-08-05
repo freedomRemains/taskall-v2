@@ -124,6 +124,26 @@ read/edit 制御は `HTML_PARTS_IN_APROLE` で管理し、`AuthUtil.hasEditAuth(
 - そのため、DBデータ（`DESTINATION_GET`等）・コントローラ側のビュー名解決処理
   （`TaskallV2Controller`）ともに、拡張子は `.jsp` ではなく `.html` を前提として実装・移植する。
 
+## 画面デザイン・配色の方針（issue #9「デザインの改善」対応）
+
+- 画面デザインは引き続きBootstrap（`src/main/resources/static/css/bootstrap.min.css`）を使用し、
+  レスポンシブデザインを維持する。ただしDBメンテナンス系画面（テーブル定義参照・データ編集・
+  レコード参照など）は、PCでの利用を主目的とするため、無理にレスポンシブ対応しなくてよい。
+- 配色は個別のHTML要素へ`style`属性や固有クラスでベタ書きせず、
+  `src/main/resources/static/css/rwstyle.css`の`:root`ブロックでBootstrap 5.3の
+  CSSカスタムプロパティ（`--bs-primary`等）を上書きする方式に統一する。これにより、
+  画面全体の色味を変更したい場合は`rwstyle.css`の変数上書きを直すだけで済み、
+  各テンプレート側は`btn-primary`/`bg-primary`のような標準クラスのみを使い続ければよい。
+- 共通ヘッダ（`20010_commonHeader.html`）は灰色(`bg-secondary`)ではなくテーマカラー
+  (`bg-primary`)を使用する。「TOP」「マイページ」等のリンクは`btn-outline-light rounded-pill`
+  でタブ風の見た目にし、単なるラベルとリンクが区別しづらい状態を避ける。
+- ログイン画面（`20030_commonLogin.html`）のような入力フォームは、`row justify-content-center`
+  ＋`col-md-*`で中央寄せし、`card`＋`form-label`/`form-control`を用いた縦積みレイアウトとする。
+- マイページ等のボタン一覧（`20040_commonLinkList.html`等）は、`btn w-100`で単純に縦に
+  並べるのではなく、`row row-cols-1 row-cols-md-2 g-3`のようなグリッドでカード状に整列させる。
+- DBメンテナンス系のtable要素は、`table-responsive`でラップした上で`w-auto`とし、
+  `d-flex justify-content-center`で中央寄せする（レスポンシブ対応は不要だが、中央寄せは行う）。
+
 ## ログメッセージの管理方針（PR #10 レビュー指摘）
 
 - `ERROR`/`WARN`レベルでログ出力する文字列は、直接記述せず
@@ -239,6 +259,11 @@ read/edit 制御は `HTML_PARTS_IN_APROLE` で管理し、`AuthUtil.hasEditAuth(
 本プロジェクトはissue -> ブランチ -> pull requestのループで、AIエージェントによって開発が
 進められます（`documents/design/2000003_implementation_design.md`）。
 
+- **作業着手前に、必ず`documents/rules/`配下の全ファイルを読むこと。** 環境変数の設定先
+  （JAVA_HOME、アプリ起動ポート等）、ブランチ作成・プルリク作成の具体的なコマンド、
+  DBクリーンアップ手順など、開発効率化のためAIとの過去のやり取りを踏まえて策定された
+  規則が記載されている。既知の内容であっても、探索や試行錯誤を省略しクレジット消費を
+  抑えるため、都度確認してから作業に着手すること。
 - **issueの指定が無い実装依頼には着手しないこと。** issueのURLが示されていない場合は
   「実装依頼にはissueが必要です」と回答し、実装作業を行わない。
 - 実装作業を開始する前に、**superpowers**（https://github.com/obra/superpowers）が
@@ -253,6 +278,11 @@ read/edit 制御は `HTML_PARTS_IN_APROLE` で管理し、`AuthUtil.hasEditAuth(
   訂正・補完せず、必ず質問すること。**
 - pull requestへの指摘対応時も、該当のコメント内容を確認し、実装・テスト双方を修正する。
   この場合も不明点があれば必ず質問すること。
+- **issue対応が完了した際は、`documents/rules/1000002_issue_points.md`に、対応した
+  issueのポイント（issue URL、PR URL、関連する相対パス、決定事項・規約の要点）を
+  `###`見出しのセクションとして追記すること。** これにより、今後の作業で当該issueや
+  pull requestの全文を読み返さなくても、要点だけを短時間で把握できるようにする
+  （`documents/rules/1000002_issue_points.md`の`## 概要`節も参照）。
 
 ## ドキュメントの管理方法
 
