@@ -101,3 +101,20 @@ module "cloudfront" {
   acm_certificate_arn = module.acm.certificate_arn
   web_acl_arn         = module.waf.web_acl_arn
 }
+
+# GitHub Actions CI/CDがビルド成果物(jar)をアップロードするS3バケット
+module "artifact_bucket" {
+  source = "../modules/artifact_bucket"
+
+  project_name = var.project_name
+}
+
+# GitHub Actions CI/CDがOIDC連携でAssumeRoleするIAM Role(develop→mainマージ時のみ使用)
+module "github_oidc_role" {
+  source = "../modules/github_oidc_role"
+
+  project_name        = var.project_name
+  github_repository   = var.github_repository
+  github_branch       = var.github_branch
+  artifact_bucket_arn = module.artifact_bucket.bucket_arn
+}

@@ -1,0 +1,79 @@
+# develop→mainマージ時のみ起動するCI/CDワークフロー。
+# 1. Gradleビルド(全テスト含む)
+# 2. 成果物(jar)をAWS S3へアップロード
+# feature→developのマージ時は現行通り本ワークフローを実行しない(トリガーをmainブランチのみに限定)。
+# 実際のAWS環境へのリリース実行(EC2側でのS3ポーリング・再起動)は本ワークフローのスコープ外であり、
+# 別issueでEC2側に実装するsystemdタイマーが担う(documents/design/2000007_aws_build_up.md参照)。
+name: CI/CD (develop -> main)
+
+on:
+  push:
+    branches:
+      - main
+
+# GitHub Actions OIDCトークンを用いてAWS IAM RoleをAssumeするために必須の権限
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-test:
+    name: Gradleビルド・全テスト実行
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: JDK 21のセットアップ
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Gradleビルド(全テスト含む)
+        run: ./gradlew build --no-daemon
+
+      - name: テスト結果・ビルドレポートのアップロード(失敗時の調査用)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: build/reports/tests/test
+          retention-days: 14
+
+      - name: 成果物(jar)のアップロード(deployジョブへ引き継ぐ)
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: build/libs/*.jar
+          retention-days: 14
+
+  upload-to-s3:
+    name: AWS S3への成果物アップロード
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: 成果物(jar)のダウンロード
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: build/libs
+
+      # OIDC連携によりAWSの一時的な認証情報を取得する(長期のアクセスキーは使用しない)
+      - name: AWS認証情報の設定(OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'ap-northeast-1' }}
+
+      # EC2側は本バケットをsystemdタイマーで定期ポーリングし、バージョンIDの差分検知でデプロイする
+      # (documents/design/2000007_aws_build_up.md参照。EC2側の実装は別issueで対応)
+      - name: S3へのアップロード
+        run: |
+          set -eu
+          JAR_PATH=$(find build/libs -maxdepth 1 -name '*.jar' | head -n 1)
+          if [ -z "${JAR_PATH}" ]; then
+            echo "アップロード対象のjarが見つかりません" >&2
+            exit 1
+          fi
+          aws s3 cp "${JAR_PATH}" "s3://${{ vars.AWS_ARTIFACT_BUCKET_NAME }}/releases/taskall-v2.jar"

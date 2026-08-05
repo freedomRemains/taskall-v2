@@ -27,3 +27,15 @@ variable "domain_name" {
   type        = string
   default     = "taskall-v2.com"
 }
+
+variable "github_repository" {
+  description = "GitHub Actions OIDC連携でAssumeRoleを許可する対象リポジトリ(\"<owner>/<repo>\"形式)"
+  type        = string
+  default     = "freedomRemains/taskall-v2"
+}
+
+variable "github_branch" {
+  description = "GitHub Actions OIDC連携でAssumeRoleを許可する対象ブランチ(develop→mainマージ時のみCI/CDを起動するため、mainのみ許可する)"
+  type        = string
+  default     = "main"
+}
