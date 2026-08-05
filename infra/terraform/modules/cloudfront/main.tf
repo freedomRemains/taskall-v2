@@ -22,6 +22,12 @@ terraform {
 # 既に有効化しているが、web_acl_idはmodule.waf側のARNをモジュール境界をまたいで参照するため、
 # checkov側では当該WAFの中身まで解決できず誤検知となる(modules/security_groupのCKV2_AWS_5と同種の制約)。
 resource "aws_cloudfront_distribution" "app" {
+  #checkov:skip=CKV_AWS_86:アクセスログ用S3バケットは費用最小方針のため見送る(監視スコープ外方針)
+  #checkov:skip=CKV2_AWS_32:レスポンスヘッダーポリシーは初期構築のスコープ外とし、将来必要になった時点で別issueとして検討する
+  #checkov:skip=CKV_AWS_374:対象は国内向けサービスに限定しないため、地理的制限(geo_restriction)は設けない方針とする
+  #checkov:skip=CKV_AWS_305:オリジンはS3静的サイトではなくEC2上の動的Webアプリのため、default_root_objectは適用対象外
+  #checkov:skip=CKV_AWS_310:オリジンはEC2単一構成(費用最小方針)のため、フェイルオーバー用の第2オリジンは設けない
+  #checkov:skip=CKV2_AWS_47:modules/wafでAWSManagedRulesKnownBadInputsRuleSet(Log4j対策含む)を有効化済みだが、モジュール境界をまたぐ参照のためcheckovが検知できない誤検知
   enabled         = true
   is_ipv6_enabled = true
   comment         = "${var.project_name} distribution"

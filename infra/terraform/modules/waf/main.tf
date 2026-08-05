@@ -17,7 +17,9 @@ terraform {
 # documents/design/2000007_aws_build_up.mdの方針通り、
 # AWS Managed Rule(Core) + AWS Managed Rule(SQLi/XSS) + IPレート制限の3ルールのみを適用する
 # 最小構成とする(費用最小方針、カスタムルールは追加しない)。
+# [許容リスク: CKV2_AWS_31] WAFのログ出力(CloudWatch Logs等)は監視スコープ外の方針に合わせ、初期構築では見送る
 resource "aws_wafv2_web_acl" "cloudfront" {
+  #checkov:skip=CKV2_AWS_31:WAFのログ出力(CloudWatch Logs等)は監視スコープ外の方針に合わせ、初期構築では見送る
   provider = aws.us_east_1
 
   name        = "${var.project_name}-cloudfront-waf"

@@ -20,6 +20,7 @@ data "aws_ec2_managed_prefix_list" "cloudfront" {
 
 # [許容リスク(誤検知): CKV2_AWS_5] modules/ec2でaws_instance.appにvpc_security_group_idsとしてアタッチしている(モジュール境界をまたぐためcheckovが検知できない誤検知)
 resource "aws_security_group" "ec2" {
+  #checkov:skip=CKV2_AWS_5:modules/ec2でaws_instance.appにvpc_security_group_idsとしてアタッチしている(モジュール境界をまたぐためcheckovが検知できない誤検知)
   name = "${var.project_name}-ec2-sg"
   # AWSのGroupDescriptionはASCII文字のみ対応のため、説明は英語で記述する
   description = "Allow app port access from CloudFront only; deny direct access and SSH"

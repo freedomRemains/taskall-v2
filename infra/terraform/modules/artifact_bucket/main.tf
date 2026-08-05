@@ -21,6 +21,10 @@ data "aws_caller_identity" "current" {}
 # [許容リスク: CKV_AWS_144] アーティファクト専用バケットのため、クロスリージョンレプリケーションは費用最小方針で見送る
 # [許容リスク: CKV_AWS_145] SSE-S3(AES256)による暗号化で十分と判断し、KMS CMKは費用最小方針で見送る
 resource "aws_s3_bucket" "artifact" {
+  #checkov:skip=CKV_AWS_18:アーティファクト専用の非公開バケットのため、アクセスログ用バケットは費用最小方針で見送る
+  #checkov:skip=CKV2_AWS_62:アーティファクト専用バケットのためイベント通知は不要と判断
+  #checkov:skip=CKV_AWS_144:アーティファクト専用バケットのため、クロスリージョンレプリケーションは費用最小方針で見送る
+  #checkov:skip=CKV_AWS_145:SSE-S3(AES256)による暗号化で十分と判断し、KMS CMKは費用最小方針で見送る
   bucket = "${var.project_name}-artifact-${data.aws_caller_identity.current.account_id}"
 
   tags = {

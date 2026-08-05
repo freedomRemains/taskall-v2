@@ -26,6 +26,10 @@ data "aws_caller_identity" "current" {}
 # [許容リスク: CKV_AWS_144] state専用バケットのため、クロスリージョンレプリケーションは費用最小方針で見送る
 # [許容リスク: CKV_AWS_145] SSE-S3(AES256)による暗号化で十分と判断し、KMS CMKは費用最小方針で見送る
 resource "aws_s3_bucket" "terraform_state" {
+  #checkov:skip=CKV_AWS_18:state専用の非公開バケットのため、アクセスログ用バケットは費用最小方針で見送る
+  #checkov:skip=CKV2_AWS_62:state専用バケットのためイベント通知は不要と判断
+  #checkov:skip=CKV_AWS_144:state専用バケットのため、クロスリージョンレプリケーションは費用最小方針で見送る
+  #checkov:skip=CKV_AWS_145:SSE-S3(AES256)による暗号化で十分と判断し、KMS CMKは費用最小方針で見送る
   bucket = "${var.project_name}-terraform-state-${data.aws_caller_identity.current.account_id}"
 
   # 誤ってstateバケット自体を削除してしまう事故を防止する
@@ -93,6 +97,7 @@ resource "aws_s3_bucket_lifecycle_configuration" "terraform_state" {
 # Terraform実行の同時実行を防止するためのDynamoDB Lockテーブル
 # [許容リスク: CKV_AWS_119] ロック情報のみを保持する低リスクテーブルのため、KMS CMKは費用最小方針で見送り、デフォルトのAWS所有キー暗号化を採用する
 resource "aws_dynamodb_table" "terraform_lock" {
+  #checkov:skip=CKV_AWS_119:ロック情報のみを保持する低リスクテーブルのため、KMS CMKは費用最小方針で見送り、デフォルトのAWS所有キー暗号化を採用する
   name         = "${var.project_name}-terraform-lock"
   billing_mode = "PAY_PER_REQUEST"
   hash_key     = "LockID"

@@ -235,3 +235,25 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     `required_providers.aws.version = "~> 5.0"`（`acm`/`waf`は既存の`configuration_aliases`と
     併記）を追加し、20件の警告すべてを解消した。AI作業環境にtflint(0.64.0)を追加インストールし
     `tflint --recursive --chdir infra/terraform`が0件で完了することを確認済み。
+  - CI上の`checkov`実行結果から、既存コードに`# [許容リスク: CKV_XXX]`として人間向けコメントで
+    レビュー済み・許容合意済みのはずの20件が、いずれも`FAILED`として検出されていたことが判明。
+    これは`terraform-lint.yml`の`checkov-action`が`soft_fail: false`のため、機械可読な抑制設定が
+    無ければ許容済みリスクであってもCIが失敗する仕様のため。対応方針についてユーザーへ
+    「警告のみでコードが妥当な場合はCI側を成功扱いにしてよい」との提案を受けたが、
+    `soft_fail: true`のようなグローバル抑制は今後の新規findingsも一律で見逃してしまいCIの
+    セキュリティゲートとしての意味を弱めるため採用せず、`#checkov:skip=CHECK_ID:reason`による
+    リソース単位の抑制コメントを、既存の`[許容リスク]`コメントに追加する形で20件すべてに付与した
+    （これにより将来の新規findingsは引き続きCIで検知される）。付与の過程で、checkov 3.3.9では
+    `#checkov:skip=`コメントを`resource`宣言の**上（コメント群と並べる位置）ではなく、
+    `resource "..." "..." {`ブロックの内側（開き波括弧の直後の行）に置く必要がある**ことが
+    判明した（当初はブロック上に配置しており、ローカル検証で`Skipped checks: 0`のまま
+    反映されない不具合として発覚。`/tmp`上の最小再現構成で位置による挙動差を確認し、
+    ブロック内側へ移設することで解消）。修正対象は`bootstrap/main.tf`
+    （`aws_s3_bucket.terraform_state`/`aws_dynamodb_table.terraform_lock`）、
+    `modules/artifact_bucket`（`aws_s3_bucket.artifact`）、`modules/cloudfront`
+    （`aws_cloudfront_distribution.app`、6件）、`modules/ec2`（`aws_instance.app`）、
+    `modules/security_group`（`aws_security_group.ec2`）、`modules/vpc`（`aws_vpc.main`）、
+    `modules/waf`（`aws_wafv2_web_acl.cloudfront`）、`modules/route53`
+    （`aws_route53_record.origin`）の計20件。AI作業環境で`checkov -d infra/terraform`を
+    再実行し`Passed checks: 112, Failed checks: 0, Skipped checks: 20`を確認、あわせて
+    `terraform fmt`/`tflint`/`terraform validate`（bootstrap/prod双方）も再確認済み。

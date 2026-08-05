@@ -25,6 +25,7 @@ data "aws_route53_zone" "primary" {
 # 参照できるAWSリソース(ELB/CloudFront等)のARNを持たないため、checkovが要求する
 # 「AWSリソースへの直接アタッチ」を満たせない(EIP宛のAレコードでは構造上検知不可能な誤検知)。
 resource "aws_route53_record" "origin" {
+  #checkov:skip=CKV2_AWS_23:Elastic IPは静的なIPアドレス値でありAWSリソースのARNを持たないため、checkovが要求する「AWSリソースへの直接アタッチ」を構造上満たせない誤検知
   zone_id = data.aws_route53_zone.primary.zone_id
   name    = "${var.origin_subdomain}.${var.domain_name}"
   type    = "A"
