@@ -3,8 +3,13 @@ variable "project_name" {
   type        = string
 }
 
-variable "github_repository" {
-  description = "GitHub ActionsからのAssumeRoleを許可する対象リポジトリ(\"<owner>/<repo>\"形式)"
+variable "github_repository_id" {
+  description = "GitHub ActionsからのAssumeRoleを許可する対象リポジトリの不変ID(repository_idクレーム)。owner/repo名がリネームされてもズレないよう、信頼ポリシーの条件にはこちらを使用する"
+  type        = string
+}
+
+variable "github_repository_owner_id" {
+  description = "GitHub ActionsからのAssumeRoleを許可する対象Organization/ユーザの不変ID(repository_owner_idクレーム)"
   type        = string
 }
 

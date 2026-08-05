@@ -257,3 +257,30 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     （`aws_route53_record.origin`）の計20件。AI作業環境で`checkov -d infra/terraform`を
     再実行し`Passed checks: 112, Failed checks: 0, Skipped checks: 20`を確認、あわせて
     `terraform fmt`/`tflint`/`terraform validate`（bootstrap/prod双方）も再確認済み。
+  - develop→mainマージ後、実際に`cicd.yml`のOIDC認証ステップで
+    `Error: Could not assume role with OIDC: Not authorized to perform sts:AssumeRoleWithWebIdentity`
+    が発生。信頼ポリシー・OIDCプロバイダの設定内容自体はAWS側で確認しても想定通り
+    （`sub`条件: `repo:freedomRemains/taskall-v2:ref:refs/heads/main`、`aud`条件:
+    `sts.amazonaws.com`）であり、IAMリソース伝播遅延を疑い再実行を依頼したが再現。
+    原因切り分けのため、AWSを呼ばずGitHub Actionsが発行するOIDCトークン自体をデコードして
+    `sub`/`aud`等のクレームを出力する一時診断ジョブ(`debug/oidc-claims`ブランチ)を追加し
+    実行したところ、実際の`sub`クレームが
+    `repo:freedomRemains@188358132/taskall-v2@1313485636:ref:refs/heads/debug/oidc-claims`
+    という、単純な`repo:owner/repo:ref:...`ではなく、owner名・repo名に不変ID(`@<owner_id>`/
+    `@<repo_id>`)が付与された形式になっていることが判明した。これはGitHubがOrganization/
+    リポジトリ名のリネームに伴うなりすまし対策として、リネーム履歴のあるリポジトリの`sub`
+    クレームにこの形式を用いる仕様のためで、Terraformの信頼ポリシーが単純な文字列比較
+    （`repo:${var.github_repository}:ref:refs/heads/${var.github_branch}`）だったことが
+    直接の原因だった。リネームの影響を受けない`repository_id`/`repository_owner_id`
+    クレーム(不変ID、AWS公式推奨)を条件に用いる方式へ変更し、`sub`条件は
+    `repo:*:ref:refs/heads/${var.github_branch}`というブランチ限定のワイルドカードのみに
+    緩和した。`modules/github_oidc_role`の`github_repository`変数（文字列比較用）は不要になり
+    削除、代わりに`github_repository_id`/`github_repository_owner_id`変数を追加した
+    （値は診断ジョブのOIDCトークン出力から取得: repository_id=1313485636,
+    repository_owner_id=188358132）。診断用の一時ジョブ・ブランチ(`debug/oidc-claims`)は
+    原因判明後に削除し、修正は`fix/oidc-repository-rename`ブランチとして別PRで対応した。
+    AI作業環境で`terraform fmt`/`terraform validate`/`tflint`/`checkov`を再実行し
+    いずれも合格することを確認済み（`tflint`は変数削除に伴い未使用変数警告が新たに1件
+    発生したため、`prod/variables.tf`側の対応する`github_repository`変数も削除して解消）。
+    実際のAWS環境への`terraform apply`・GitHub Actions上でのAssumeRole成功確認はユーザー側で
+    実施予定。
