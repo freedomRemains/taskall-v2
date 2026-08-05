@@ -22,3 +22,13 @@ output "site_url" {
   description = "利用者がアクセスするURL(カスタムドメイン経由)"
   value       = "https://${var.domain_name}"
 }
+
+output "artifact_bucket_name" {
+  description = "CI/CDアーティファクト用S3バケット名(GitHub ActionsのRepository Variableに設定する)"
+  value       = module.artifact_bucket.bucket_name
+}
+
+output "github_actions_role_arn" {
+  description = "GitHub Actions CI/CDがOIDC連携でAssumeRoleするIAM Role ARN(GitHub ActionsのRepository Variableに設定する)"
+  value       = module.github_oidc_role.role_arn
+}

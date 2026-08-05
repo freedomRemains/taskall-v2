@@ -3,12 +3,24 @@
 # (com.amazonaws.global.cloudfront.origin-facing)は自プロジェクトのCloudFront構築有無に
 # 関わらず利用可能なため、先行して参照できる。
 
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
 data "aws_ec2_managed_prefix_list" "cloudfront" {
   name = "com.amazonaws.global.cloudfront.origin-facing"
 }
 
 # [許容リスク(誤検知): CKV2_AWS_5] modules/ec2でaws_instance.appにvpc_security_group_idsとしてアタッチしている(モジュール境界をまたぐためcheckovが検知できない誤検知)
 resource "aws_security_group" "ec2" {
+  #checkov:skip=CKV2_AWS_5:modules/ec2でaws_instance.appにvpc_security_group_idsとしてアタッチしている(モジュール境界をまたぐためcheckovが検知できない誤検知)
   name = "${var.project_name}-ec2-sg"
   # AWSのGroupDescriptionはASCII文字のみ対応のため、説明は英語で記述する
   description = "Allow app port access from CloudFront only; deny direct access and SSH"

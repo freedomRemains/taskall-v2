@@ -9,6 +9,12 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+
+    # modules/github_oidc_role でGitHubのOIDCエンドポイント証明書サムプリントを動的取得するために使用
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 
   # backendの実値(バケット名等)はbackend.conf(bootstrap実行後に作成)を
@@ -92,12 +98,29 @@ module "waf" {
 module "cloudfront" {
   source = "../modules/cloudfront"
 
-  project_name        = var.project_name
-  domain_name         = var.domain_name
+  project_name = var.project_name
+  domain_name  = var.domain_name
   # CloudFrontのカスタムオリジンにIPアドレスを直接指定するとAWS API側でエラーになるため、
   # module.route53_zoneで作成したDNS名(origin.<domain_name>)経由でEC2のElastic IPを参照する
   origin_domain_name  = module.route53_zone.origin_domain_name
   origin_port         = var.app_port
   acm_certificate_arn = module.acm.certificate_arn
   web_acl_arn         = module.waf.web_acl_arn
+}
+
+# GitHub Actions CI/CDがビルド成果物(jar)をアップロードするS3バケット
+module "artifact_bucket" {
+  source = "../modules/artifact_bucket"
+
+  project_name = var.project_name
+}
+
+# GitHub Actions CI/CDがOIDC連携でAssumeRoleするIAM Role(develop→mainマージ時のみ使用)
+module "github_oidc_role" {
+  source = "../modules/github_oidc_role"
+
+  project_name        = var.project_name
+  github_repository   = var.github_repository
+  github_branch       = var.github_branch
+  artifact_bucket_arn = module.artifact_bucket.bucket_arn
 }

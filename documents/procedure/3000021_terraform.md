@@ -9,12 +9,16 @@
 ## 概要
 
 - 本資料は、`infra/terraform`配下のTerraform資材を使い、AWS環境（VPC / EC2 / Security Group /
-  IAM Role / ACM / WAF / CloudFront / Route53）を構築する手順を示します。
+  IAM Role / ACM / WAF / CloudFront / Route53 / GitHub Actions OIDC Role / CI/CDアーティファクト用S3）
+  を構築する手順を示します。
 - 資材構成の詳細な設計方針は
   [documents/design/2000007_aws_build_up.md](../design/2000007_aws_build_up.md)を参照してください。
 - 本手順は[issue #29](https://github.com/freedomRemains/taskall-v2/issues/29)・
-  [issue #32](https://github.com/freedomRemains/taskall-v2/issues/32)（いずれも
+  [issue #32](https://github.com/freedomRemains/taskall-v2/issues/32)・
+  [issue #34](https://github.com/freedomRemains/taskall-v2/issues/34)（いずれも
   [issue #27](https://github.com/freedomRemains/taskall-v2/issues/27)の後続issue）に対応します。
+- GitHub Actions CI/CDワークフロー自体の説明・GitHub側の設定手順は
+  [documents/procedure/3000031_github_actions_cicd.md](3000031_github_actions_cicd.md)を参照してください。
 
 ---
 
@@ -42,6 +46,8 @@ infra/terraform/
     waf/            # CloudFrontにアタッチするWAFv2 WebACL(Core/SQLi等のAWS Managed Rule + IPレート制限)
     cloudfront/     # CloudFrontディストリビューション(EC2をカスタムオリジンとするHTTPS終端)
     route53/        # 取得済みドメインのHosted Zone参照 + CloudFrontへのAlias(A/AAAA)レコード
+    artifact_bucket/  # GitHub Actions CI/CDがビルド成果物(jar)をアップロードするS3バケット
+    github_oidc_role/ # GitHub Actions用OIDCプロバイダ + AssumeRole用IAM Role(develop→mainマージ時のみ許可)
 ```
 
 - 現時点ではprod環境のみを想定しており、環境分離（Terraform workspaceや環境別tfvars）は
@@ -100,6 +106,12 @@ terraform apply
   `site_url`（`https://<取得済みドメイン>`）の出力値も確認できます。ACM証明書のDNS検証・
   CloudFrontディストリビューションの配信開始（Deployed状態への遷移）には数分〜数十分程度
   かかる場合があるため、`apply`完了直後は`site_url`へアクセスしてもエラーになることがあります。
+- `apply`完了後、`artifact_bucket_name`（CI/CDアーティファクト用S3バケット名）・
+  `github_actions_role_arn`（GitHub Actionsがaws-actions/configure-aws-credentialsで
+  AssumeRoleする際に指定するIAM Role ARN）の出力値も確認できます。この2つの値は、
+  GitHub Actionsワークフローが参照できるよう、GitHub側のRepository Variableとして
+  手動で設定する必要があります（設定手順は
+  [documents/procedure/3000031_github_actions_cicd.md](3000031_github_actions_cicd.md)参照）。
 
 ---
 

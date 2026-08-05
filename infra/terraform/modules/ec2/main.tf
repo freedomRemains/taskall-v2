@@ -1,12 +1,24 @@
 # 費用最小構成に基づき、Gravitonインスタンス(t4g.small)・Amazon Linux 2023(arm64)を使用する。
 # AMIはSSM Parameter Store経由で常に最新のものを自動取得する。
 
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
 data "aws_ssm_parameter" "al2023_arm64" {
   name = "/aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-arm64"
 }
 
 # [許容リスク: CKV_AWS_126] 詳細モニタリング(1分間隔)は追加費用が発生するため、監視のスコープ外(documents/design/2000007_aws_build_up.md)に合わせて見送る
 resource "aws_instance" "app" {
+  #checkov:skip=CKV_AWS_126:詳細モニタリング(1分間隔)は追加費用が発生するため、監視のスコープ外に合わせて見送る
   ami                    = data.aws_ssm_parameter.al2023_arm64.value
   instance_type          = var.instance_type
   subnet_id              = var.subnet_id

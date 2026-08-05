@@ -169,3 +169,91 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
   - checkovの新規指摘（`CKV_AWS_374`/`CKV_AWS_305`/`CKV_AWS_310`/`CKV_AWS_86`/
     `CKV2_AWS_32`/`CKV2_AWS_31`/`CKV2_AWS_47`(誤検知)/`CKV2_AWS_23`(誤検知)）は、
     費用最小方針・モジュール境界による誤検知として、該当ファイル内にコメントで理由を明記した。
+
+### issue #34: GitHub Actions CI/CD構築（OIDC設定含む）
+
+- issue: https://github.com/freedomRemains/taskall-v2/issues/34
+- PR: https://github.com/freedomRemains/taskall-v2/pull/35
+- issue #27で検討したCI/CDフロー（develop→mainマージ時のみ起動、OIDC連携、S3への
+  アーティファクトアップロードまでをCI/CD側が担い、実際のデプロイはEC2側のポーリングに任せる）を
+  実装した。
+- 追加したTerraformモジュール:
+  - `infra/terraform/modules/github_oidc_role`: `token.actions.githubusercontent.com`を
+    Issuerとする`aws_iam_openid_connect_provider`と、AssumeRole用の`aws_iam_role`を追加。
+    信頼ポリシーの`sub`クレームを`repo:<owner>/<repo>:ref:refs/heads/main`に限定し、
+    feature/developブランチや他リポジトリからのAssumeRoleを禁止。付与する権限もアーティファクト
+    バケットへの`s3:PutObject`/`s3:GetObject`/`s3:ListBucket`のみに絞った最小権限とした。
+  - `infra/terraform/modules/artifact_bucket`: CI/CDアーティファクト(jar)保存用のS3バケット。
+    `bootstrap`のstate用バケットと同様、バージョニング・SSE-S3暗号化・パブリックアクセス
+    ブロック・旧バージョン自動削除ライフサイクルを設定。EC2側は本バケットのバージョンIDを
+    ポーリングし新旧差分を検知する想定（EC2側の実装は本issueのスコープ外、別issueで対応）。
+  - `infra/terraform/prod/main.tf`に上記2モジュールを組み込み、`artifact_bucket_name`・
+    `github_actions_role_arn`をoutputsに追加した。両出力値はGitHub側のRepository Variableとして
+    手動設定が必要（`documents/procedure/3000031_github_actions_cicd.md`参照）。
+- 追加したGitHub Actionsワークフロー:
+  - `.github/workflows/cicd.yml`: `main`ブランチへの`push`（develop→mainマージ）のみで起動。
+    `build-and-test`ジョブでGradleビルド・全テストを実行し、`upload-to-s3`ジョブで
+    `aws-actions/configure-aws-credentials`によるOIDC認証を行いS3へjarをアップロードする
+    （`permissions: id-token: write`が必須）。
+  - `.github/workflows/terraform-lint.yml`: `infra/terraform/**`を変更するPull Requestに対し、
+    `terraform fmt -check` → `terraform validate`（bootstrap/prod個別に`-backend=false`）→
+    `tflint` → `checkov`の順でIaC静的チェックを実行する（issue #27の「防護措置・予防措置」節に
+    対応）。
+- AI作業環境（サンドボックス）にはTerraform CLI・tflint・checkovいずれも標準では未インストール
+  だったため、`wget`でzipを取得し`python3`の`zipfile`モジュールで展開する方法
+  （`curl`/`unzip`が利用不可なため）でTerraform CLI(1.5.7)・tflint(0.64.0)を一時インストールし、
+  `terraform fmt`/`terraform validate`/`tflint --recursive`をローカルで実行できるようにした
+  （`checkov`は元々インストール済み）。`terraform apply`による実機構築・ワークフローの実機起動
+  確認は環境上未実施。
+- PRレビュー指摘への対応:
+  - 手順書`documents/procedure/3000022_github_actions_cicd.md`は、手順書が10番飛ばし採番
+    （3000001, 3000011, 3000021, ...）である規約に反していたため、
+    `documents/procedure/3000031_github_actions_cicd.md`にリネームした。
+  - CI上の`terraform-lint.yml`実行結果から、`prod/main.tf`の`cloudfront`モジュール呼び出し部分
+    （コメントで代入群が分断され、`terraform fmt`の整列規則とズレていた）で`terraform fmt`
+    エラーが発生していたことが判明。AI作業環境にTerraform CLI(1.5.7)を一時インストールし、
+    `terraform fmt -recursive -check -diff`で再現・修正を確認した。
+  - CI上の`terraform validate`実行結果から、`modules/github_oidc_role`の
+    `aws_iam_openid_connect_provider.thumbprint_list`にハードコードしていた値が
+    実際には39文字（SHA1サムプリントとして必要な40文字に対し1文字不足）であったことが判明し、
+    `Error: expected length of thumbprint_list.0 to be in the range (40 - 40)`エラーとなった。
+    GitHubのOIDCエンドポイント証明書は発行元CA（本調査時点ではLet's Encrypt、以前はDigiCert）が
+    将来変更されうるため、固定値のハードコードは失効・変更時に追従漏れのリスクがあると判断し、
+    `data "tls_certificate"`（`hashicorp/tls`プロバイダ）でGitHubのOIDCエンドポイントの証明書
+    チェーンを都度取得し、そのSHA1サムプリントを動的に使用する方式に変更した
+    （`terraform init`・`terraform validate`をAI作業環境で実行し、`hashicorp/tls`プロバイダの
+    追加インストール・`aws_iam_openid_connect_provider`の生成が成功することを確認済み）。
+  - CI上の`tflint --recursive`実行結果から、`terraform_required_version`（`required_version`
+    未設定）・`terraform_required_providers`（`aws`プロバイダのバージョン制約未設定）の警告が
+    20件発生していたことが判明。これは本issueで新規追加した`artifact_bucket`/`github_oidc_role`
+    だけでなく、issue #29・#32で構築済みの`vpc`/`security_group`/`iam_ec2_role`/`ec2`/`acm`/
+    `waf`/`cloudfront`/`route53`の全モジュールが、モジュール単体では`required_version`・
+    プロバイダバージョン制約を持たない構成だったために発生していた（ルート`prod`/`bootstrap`側は
+    元々設定済みだったが、tflintは各モジュールディレクトリ単位でもこれらの設定を要求するため）。
+    本issueで新設した`terraform-lint.yml`により初めてtflintがCIで実行されるようになったため、
+    既存モジュール分もあわせて全モジュールに`required_version = ">= 1.5.0"`・
+    `required_providers.aws.version = "~> 5.0"`（`acm`/`waf`は既存の`configuration_aliases`と
+    併記）を追加し、20件の警告すべてを解消した。AI作業環境にtflint(0.64.0)を追加インストールし
+    `tflint --recursive --chdir infra/terraform`が0件で完了することを確認済み。
+  - CI上の`checkov`実行結果から、既存コードに`# [許容リスク: CKV_XXX]`として人間向けコメントで
+    レビュー済み・許容合意済みのはずの20件が、いずれも`FAILED`として検出されていたことが判明。
+    これは`terraform-lint.yml`の`checkov-action`が`soft_fail: false`のため、機械可読な抑制設定が
+    無ければ許容済みリスクであってもCIが失敗する仕様のため。対応方針についてユーザーへ
+    「警告のみでコードが妥当な場合はCI側を成功扱いにしてよい」との提案を受けたが、
+    `soft_fail: true`のようなグローバル抑制は今後の新規findingsも一律で見逃してしまいCIの
+    セキュリティゲートとしての意味を弱めるため採用せず、`#checkov:skip=CHECK_ID:reason`による
+    リソース単位の抑制コメントを、既存の`[許容リスク]`コメントに追加する形で20件すべてに付与した
+    （これにより将来の新規findingsは引き続きCIで検知される）。付与の過程で、checkov 3.3.9では
+    `#checkov:skip=`コメントを`resource`宣言の**上（コメント群と並べる位置）ではなく、
+    `resource "..." "..." {`ブロックの内側（開き波括弧の直後の行）に置く必要がある**ことが
+    判明した（当初はブロック上に配置しており、ローカル検証で`Skipped checks: 0`のまま
+    反映されない不具合として発覚。`/tmp`上の最小再現構成で位置による挙動差を確認し、
+    ブロック内側へ移設することで解消）。修正対象は`bootstrap/main.tf`
+    （`aws_s3_bucket.terraform_state`/`aws_dynamodb_table.terraform_lock`）、
+    `modules/artifact_bucket`（`aws_s3_bucket.artifact`）、`modules/cloudfront`
+    （`aws_cloudfront_distribution.app`、6件）、`modules/ec2`（`aws_instance.app`）、
+    `modules/security_group`（`aws_security_group.ec2`）、`modules/vpc`（`aws_vpc.main`）、
+    `modules/waf`（`aws_wafv2_web_acl.cloudfront`）、`modules/route53`
+    （`aws_route53_record.origin`）の計20件。AI作業環境で`checkov -d infra/terraform`を
+    再実行し`Passed checks: 112, Failed checks: 0, Skipped checks: 20`を確認、あわせて
+    `terraform fmt`/`tflint`/`terraform validate`（bootstrap/prod双方）も再確認済み。

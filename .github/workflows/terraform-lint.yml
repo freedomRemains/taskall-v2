@@ -1,0 +1,56 @@
+# infra/terraform配下の変更を含むPull Requestに対して、IaCの静的チェックを自動実行するワークフロー。
+# publicリポジトリでTerraformコードを管理する前提(documents/design/2000007_aws_build_up.md参照)の
+# 防護措置として、フォーマット・構文・セキュリティ設定の3観点をPRごとに機械的に検証する。
+name: Terraform Lint
+
+on:
+  pull_request:
+    paths:
+      - 'infra/terraform/**'
+
+jobs:
+  terraform-lint:
+    name: terraform fmt / validate / tflint / checkov
+    runs-on: ubuntu-latest
+    steps:
+      - name: リポジトリのチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Terraformのセットアップ
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.5.7'
+
+      - name: terraform fmt(フォーマットチェック)
+        run: terraform fmt -recursive -check -diff infra/terraform
+
+      # bootstrap/prodそれぞれ独立したroot moduleのため、個別にinit(backendなし)・validateを行う
+      - name: terraform validate(bootstrap)
+        working-directory: infra/terraform/bootstrap
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - name: terraform validate(prod)
+        working-directory: infra/terraform/prod
+        run: |
+          terraform init -backend=false
+          terraform validate
+
+      - name: tflintのセットアップ
+        uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: latest
+
+      - name: tflintの実行
+        run: |
+          tflint --init
+          tflint --recursive --chdir infra/terraform
+
+      - name: checkovによるセキュリティチェック
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: infra/terraform
+          framework: terraform
+          quiet: true
+          soft_fail: false
