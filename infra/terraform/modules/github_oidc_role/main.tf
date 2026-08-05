@@ -3,14 +3,28 @@
 # GitHub Actionsの実行時に発行される短命なOIDCトークンをAWS STSに提示し、
 # 一時的な認証情報(AssumeRoleWithWebIdentity)を取得してS3へのアーティファクトアップロードを行う。
 
+terraform {
+  required_providers {
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
+  }
+}
+
+# GitHubのOIDCエンドポイントの証明書チェーンを取得し、サムプリント(SHA1)を動的に算出する。
+# GitHubのTLS証明書は発行元CAが将来変更されうるため、値をハードコードすると失効時に
+# 更新が漏れるリスクがある。tls_certificateデータソースで都度取得することで、
+# 証明書チェーンが変わってもterraform plan/apply時に自動追従できるようにする。
+data "tls_certificate" "github_actions_oidc" {
+  url = var.oidc_thumbprint_url
+}
+
 # GitHubのOIDCプロバイダをAWS IAMに登録する。
-# thumbprint_listはGitHub ActionsのOIDCエンドポイント用として広く知られている値を設定するが、
-# AWSは2023年以降、公開されている正規のCA証明書チェーンを自動的に信頼するため、
-# 実際の検証はAWS管理のルート証明書ストアに基づいて行われる(thumbprintは形式上必須のため設定)。
 resource "aws_iam_openid_connect_provider" "github_actions" {
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea"]
+  thumbprint_list = [data.tls_certificate.github_actions_oidc.certificates[0].sha1_fingerprint]
 
   tags = {
     Name    = "${var.project_name}-github-actions-oidc"

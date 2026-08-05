@@ -18,3 +18,9 @@ variable "artifact_bucket_arn" {
   description = "GitHub Actionsからのアップロードを許可するCI/CDアーティファクト用S3バケットのARN"
   type        = string
 }
+
+variable "oidc_thumbprint_url" {
+  description = "GitHub ActionsのOIDCエンドポイントの証明書チェーンを取得するためのURL(サムプリント算出用)"
+  type        = string
+  default     = "https://token.actions.githubusercontent.com/.well-known/openid-configuration"
+}

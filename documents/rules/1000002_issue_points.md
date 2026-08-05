@@ -202,3 +202,21 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
 - Terraform CLI自体がAI作業環境（サンドボックス）に未インストールのため、`terraform apply`に
   よる実機構築・ワークフローの実機起動確認は未実施。`checkov`のみローカルで実行し、新規追加
   リソースの指摘が既存の`bootstrap`バケットと同種の許容済みリスクのみであることを確認した。
+- PRレビュー指摘への対応:
+  - 手順書`documents/procedure/3000022_github_actions_cicd.md`は、手順書が10番飛ばし採番
+    （3000001, 3000011, 3000021, ...）である規約に反していたため、
+    `documents/procedure/3000031_github_actions_cicd.md`にリネームした。
+  - CI上の`terraform-lint.yml`実行結果から、`prod/main.tf`の`cloudfront`モジュール呼び出し部分
+    （コメントで代入群が分断され、`terraform fmt`の整列規則とズレていた）で`terraform fmt`
+    エラーが発生していたことが判明。AI作業環境にTerraform CLI(1.5.7)を一時インストールし、
+    `terraform fmt -recursive -check -diff`で再現・修正を確認した。
+  - CI上の`terraform validate`実行結果から、`modules/github_oidc_role`の
+    `aws_iam_openid_connect_provider.thumbprint_list`にハードコードしていた値が
+    実際には39文字（SHA1サムプリントとして必要な40文字に対し1文字不足）であったことが判明し、
+    `Error: expected length of thumbprint_list.0 to be in the range (40 - 40)`エラーとなった。
+    GitHubのOIDCエンドポイント証明書は発行元CA（本調査時点ではLet's Encrypt、以前はDigiCert）が
+    将来変更されうるため、固定値のハードコードは失効・変更時に追従漏れのリスクがあると判断し、
+    `data "tls_certificate"`（`hashicorp/tls`プロバイダ）でGitHubのOIDCエンドポイントの証明書
+    チェーンを都度取得し、そのSHA1サムプリントを動的に使用する方式に変更した
+    （`terraform init`・`terraform validate`をAI作業環境で実行し、`hashicorp/tls`プロバイダの
+    追加インストール・`aws_iam_openid_connect_provider`の生成が成功することを確認済み）。

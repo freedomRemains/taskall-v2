@@ -9,6 +9,12 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+
+    # modules/github_oidc_role でGitHubのOIDCエンドポイント証明書サムプリントを動的取得するために使用
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
   }
 
   # backendの実値(バケット名等)はbackend.conf(bootstrap実行後に作成)を
