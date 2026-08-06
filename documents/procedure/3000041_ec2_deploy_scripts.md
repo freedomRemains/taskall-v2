@@ -35,6 +35,8 @@ infra/ec2/
       taskall-v2-backup.timer        # 毎日3時(JST)にtaskall-v2-backup.serviceを起動するタイマー
       logrotate.conf                 # /etc/logrotate.d/taskall-v2として配置するログローテート設定
       cloudwatch-agent-config.json   # CloudWatch Agent設定(ログ収集対象・Log Group名)
+      render-secrets-env.sh          # SSM Parameter Storeからメール接続情報を取得しsecrets.envへ
+                                      # 書き出すスクリプト(issue #41、taskall-v2.serviceのExecStartPre)
   release/
     release.sh                       # S3ポーリング・リリース実行・失敗時の自動ロールバック
     backup_common.sh                 # バックアップ処理の共通関数(release.sh・定期バックアップ双方から利用)
@@ -59,8 +61,15 @@ infra/ec2/
 4. Terraform変数（プロジェクト名・リージョン・アーティファクト/バックアップ用バケット名・
    アプリポート番号等）を`/etc/taskall-v2/config.env`に書き出す。`release.sh`・
    `backup_common.sh`・`taskall-v2.service`はいずれも本ファイルを`EnvironmentFile`または
-   `source`で読み込む。
-5. `release.sh`・`backup_common.sh`を`/opt/taskall-v2/bin/`に配置する。
+   `source`で読み込む。`SPRING_PROFILES_ACTIVE=prod`もここで設定し、アプリが
+   `application-prod.yaml`（本番用DB接続・メール送信設定等）で起動するようにする
+   （未設定のままだとデフォルトの`local`プロファイルで起動してしまう不備があったため、
+   issue #41対応時に追加した）。
+5. `release.sh`・`backup_common.sh`・`render-secrets-env.sh`を`/opt/taskall-v2/bin/`に配置し、
+   `render-secrets-env.sh`を1回実行してメール接続情報(SSM Parameter Store由来)を
+   `/etc/taskall-v2/secrets.env`(パーミッション600)へ書き出しておく（`taskall-v2.service`が
+   起動時に本ファイルを`EnvironmentFile`として必須参照するため、リリースタイマーによる
+   初回起動より前に用意しておく必要がある）。
 6. systemdユニット・タイマー(`taskall-v2.service`・`taskall-v2-release.{service,timer}`・
    `taskall-v2-backup.{service,timer}`)を`/etc/systemd/system/`に配置する。
 7. logrotate設定を`/etc/logrotate.d/taskall-v2`に配置する。
@@ -136,10 +145,20 @@ infra/ec2/
   - バックアップ用S3バケットへの`s3:PutObject`/`s3:GetObject`/`s3:ListBucket`
     （バックアップスクリプトのアップロード用）。
   - `ssm:GetParameter`/`ssm:GetParameters`（`/${project_name}/*`配下のパラメータのみに限定）:
-    特権管理者アカウントの認証情報をAWS SSM Parameter Store(SecureString)経由でDBへ注入する
-    方式に変更する討議結果(issue #39)を見越して、権限のみ先行して付与している。
-    **実際の注入スクリプトの実装(DBスキーマ・パスワードハッシュ方式を踏まえた対応)は
-    別issueで対応する（本issueのスコープ外）。**
+    以下2用途で使用する。
+    - 特権管理者を含む全デフォルトアカウントのパスワードを、アプリ起動時のJava処理
+      （`DefaultAccountCredentialInitializer`）が`/${project_name}/accnt/{アカウント種別}/password`
+      から取得し、`BCryptPasswordEncoder`でハッシュ化した上でDBへ反映する(issue #41)。
+    - メール(SMTP)送信の接続情報を、EC2起動前スクリプト`render-secrets-env.sh`が
+      `/${project_name}/mail/{host,port,username,password}`から取得し、
+      `/etc/taskall-v2/secrets.env`(パーミッション600)へ書き出す(issue #41)。
+      SpringBootのコンテキスト起動前に環境変数として存在している必要があるため、
+      アカウントパスワードとは異なりJava側ではなくEC2側スクリプトで処理する。
+  - 上記いずれのSSMパラメータも、初回リリース前に運用担当者が事前に作成しておく必要がある
+    （未設定の場合、`DefaultAccountCredentialInitializer`はアプリ起動自体を失敗させ、
+    `render-secrets-env.sh`は`ExecStartPre`が失敗し`taskall-v2.service`が起動しない
+    ―― いずれも「デフォルトパスワードのまま」「メール未設定のまま」の本番稼働を防ぐための
+    意図的なフェイルセーフ設計)。
 
 ---
 

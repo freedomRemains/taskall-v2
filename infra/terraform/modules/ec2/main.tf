@@ -68,6 +68,7 @@ resource "aws_instance" "app" {
     cloudwatch_agent_config    = file("${local.ec2_scripts_dir}/init/files/cloudwatch-agent-config.json")
     release_sh                 = file("${local.ec2_scripts_dir}/release/release.sh")
     backup_common_sh           = file("${local.ec2_scripts_dir}/release/backup_common.sh")
+    render_secrets_env_sh      = file("${local.ec2_scripts_dir}/init/files/render-secrets-env.sh")
   })
 
   # Nitroベースのt4g系はEBS最適化がデフォルトで有効だが、明示的に宣言する(checkov: CKV_AWS_135)
