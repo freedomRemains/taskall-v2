@@ -87,9 +87,18 @@
     取得済みドメインに対するHosted Zoneの管理のみを担う）。
 - **SES設定**
   - メール送信にはAWS SESを使用する。
-  - 認証用メールアドレスが必要。(＜例＞no-reply@mydomain.com)
-  - AWS管理コンソールより一度設定すれば、利用できるようになる。
+  - 認証用メールアドレスが必要。(使い始めのメール認証、＜例＞no-reply@mydomain.com)
+  - AWS管理コンソールより設定して、利用できるようにする。
+    - デフォルトだとサンドボックスモードとなってしまい、検証済みメールアドレスにしか送信できない。
+    - 一般的なアプリとしてのメール送信機能を備えるためには、「本番アクセス(Production Access)」申請が必要。
+    - **【注意】【重要】** 審査には数時間～数日かかることがあるため、リードタイムが発生する。
+  - SMTP認証情報はSES専用の「SMTP認証情報を発行する必要あり。
+    - AWS管理コンソール上で、SES認証情報を作成する操作が必要となる。
   - この手続きで得られるSMTPサーバの各設定値はアプリでも利用するので、控えておくこと。
+  - ドメイン検証(DKIM等)にDNSレコード追加が必要。
+    - AWS管理コンソールでSESの「Create identity」を行い、「Identity type」が「Domain」のID生成を行う。
+    - そこでRoute53で取得したドメイン名を入力し、DKIMを有効にする。
+    - それら一連の画面操作の途中で、Route53へのレコード追加のボタンが出てくるので、クリックする。
 - **SSM Parameter Store設定**
   - 「/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/password」は5種類全部必須で設定する。
   - 「/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/mailAddress」はメールアドレスを変更したいもののみ設定する。
