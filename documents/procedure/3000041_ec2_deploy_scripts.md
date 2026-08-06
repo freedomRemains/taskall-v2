@@ -133,7 +133,7 @@ infra/ec2/
   bcryptハッシュ(平文パスワード「password」)を共有しており、かつログイン後は
   DBメンテナンス画面から任意のテーブルデータを操作できてしまうため、本番リリース前に
   必ず解消すべき課題として本対応を行った。
-- **デフォルトアカウントパスワードの差し替え**は、アプリ本体のJava処理
+- **デフォルトアカウントパスワード・メールアドレスの差し替え**は、アプリ本体のJava処理
   (`com.freedom.taskall_v2.common.db.DefaultAccountCredentialInitializer`、
   `ApplicationRunner`)が担う。
   - `taskall.credential-init.enabled=true`の環境（本番のEC2インスタンス）でのみ動作する
@@ -143,11 +143,21 @@ infra/ec2/
     アプリが通常のログイン照合に使う`BCryptPasswordEncoder`と同一のBeanでハッシュ化した上で、
     `RecordQueryService`/`JdbcTemplate`経由でACCNTテーブルへ`UPDATE`する。秘匿情報は
     JVMのメモリ上でのみ扱い、ディスク・S3等のファイルには一切書き出さない。
-  - 冪等性は「対象アカウントの現在のPASSWORDが、シードデータ由来の既知のデフォルトハッシュと
-    一致するかどうか」で判定する。既に本処理や管理者の手動変更でパスワードが変更済みの場合は
-    上書きしない。
+  - パスワードの冪等性は「対象アカウントの現在のPASSWORDが、シードデータ由来の既知の
+    デフォルトハッシュと一致するかどうか」で判定する。既に本処理や管理者の手動変更で
+    パスワードが変更済みの場合は上書きしない。
   - SSMパラメータが未設定の場合は、既知のデフォルトパスワードのまま本番稼働することを防ぐため、
     アプリの起動自体を失敗させる（`ApplicationInternalException`）。
+  - **メールアドレスの差し替え**（PR #42レビュー対応で追加）も同じ仕組みで行う。
+    `{parameterPrefix}/{アカウント種別}/mailAddress`から取得した値でACCNTテーブルの
+    `MAIL_ADDRESS`を`UPDATE`する。冪等性は「現在のMAIL_ADDRESSが、シードデータ由来の
+    既知のデフォルト値(`guest@account.com`等)と一致するかどうか」で、パスワードとは独立に
+    判定する。
+    - メールアドレスの実際のGmail等のアドレスをGitHub上のリポジトリに一切コミットせずに
+      設定するための仕組みであり、パスワードと異なりSSMパラメータの設定は**必須としない**
+      （未設定の場合はシードデータのメールアドレスのまま起動を継続し、アプリの起動は
+      失敗させない）。OTPメール送信を実運用する前に、運用担当者が任意のタイミングで
+      SSMパラメータを設定し、サービスを再起動すればよい。
   - `DbInitializer`(`@Order(1)`)がテーブル・シードデータを作成した**後**に実行される必要が
     あるため、本クラスには`@Order(2)`を付与している。
 - **メール(SMTP)接続情報の取得**は、EC2側スクリプト`render-secrets-env.sh`が担う。
@@ -162,10 +172,14 @@ infra/ec2/
   - 以降はサービスを`restart`するたびに最新のSSM値を再取得するため、jarの再デプロイ無しで
     メール接続情報のみをローテーションすることも可能。
 - 運用担当者は、本番への初回リリース前に、以下のSSMパラメータ(SecureString、
-  `/${project_name}/*`配下)をあらかじめ作成しておく必要がある。未作成の場合、
-  上記いずれの仕組みもアプリ・サービスの起動自体を失敗させる（意図的なフェイルセーフ）。
-  - `/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/password`
-  - `/taskall-v2/mail/{host,port,username,password}`
+  `/${project_name}/*`配下)をあらかじめ作成しておく必要がある。**パスワード用パラメータのみ
+  未作成の場合、上記いずれの仕組みもアプリ・サービスの起動自体を失敗させる**（意図的な
+  フェイルセーフ）。メールアドレス用パラメータ(`mailAddress`)は必須ではなく、未作成の場合は
+  シードデータのメールアドレスのまま起動を継続する。
+  - `/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/password`（必須）
+  - `/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/mailAddress`（任意、
+    実際にメールを受信できるアドレスを設定したい場合のみ）
+  - `/taskall-v2/mail/{host,port,username,password}`（必須）
 
 ---
 
@@ -194,19 +208,23 @@ infra/ec2/
     （バックアップスクリプトのアップロード用）。
   - `ssm:GetParameter`/`ssm:GetParameters`（`/${project_name}/*`配下のパラメータのみに限定）:
     以下2用途で使用する。
-    - 特権管理者を含む全デフォルトアカウントのパスワードを、アプリ起動時のJava処理
-      （`DefaultAccountCredentialInitializer`）が`/${project_name}/accnt/{アカウント種別}/password`
-      から取得し、`BCryptPasswordEncoder`でハッシュ化した上でDBへ反映する(issue #41)。
+    - 特権管理者を含む全デフォルトアカウントのパスワード・メールアドレスを、アプリ起動時の
+      Java処理（`DefaultAccountCredentialInitializer`）が
+      `/${project_name}/accnt/{アカウント種別}/{password,mailAddress}`から取得し、
+      パスワードは`BCryptPasswordEncoder`でハッシュ化した上でDBへ反映する(issue #41)。
+      メールアドレス用パラメータは任意設定のため、未設定でも起動は継続する。
     - メール(SMTP)送信の接続情報を、EC2起動前スクリプト`render-secrets-env.sh`が
       `/${project_name}/mail/{host,port,username,password}`から取得し、
       `/etc/taskall-v2/secrets.env`(パーミッション600)へ書き出す(issue #41)。
       SpringBootのコンテキスト起動前に環境変数として存在している必要があるため、
       アカウントパスワードとは異なりJava側ではなくEC2側スクリプトで処理する。
-  - 上記いずれのSSMパラメータも、初回リリース前に運用担当者が事前に作成しておく必要がある
-    （未設定の場合、`DefaultAccountCredentialInitializer`はアプリ起動自体を失敗させ、
+  - 上記のうちパスワード用SSMパラメータ・`render-secrets-env.sh`用のメール接続情報は、
+    初回リリース前に運用担当者が事前に作成しておく必要がある（未設定の場合、
+    `DefaultAccountCredentialInitializer`はアプリ起動自体を失敗させ、
     `render-secrets-env.sh`は`ExecStartPre`が失敗し`taskall-v2.service`が起動しない
     ―― いずれも「デフォルトパスワードのまま」「メール未設定のまま」の本番稼働を防ぐための
-    意図的なフェイルセーフ設計)。
+    意図的なフェイルセーフ設計)。メールアドレス用SSMパラメータ(`mailAddress`)のみ任意設定であり、
+    未設定でも起動には影響しない。
 
 ---
 

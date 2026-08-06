@@ -10,8 +10,10 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -53,6 +55,14 @@ class DefaultAccountCredentialInitializerTest {
 
     private DefaultAccountCredentialInitializer initializer;
 
+    /** ACCNT_IDごとの、シードデータ由来の既知のデフォルトメールアドレス(本クラスの定数と同じ内容) */
+    private static final Map<String, String> DEFAULT_MAIL_ADDRESS_BY_ID = Map.of(
+            "1000001", "guest@account.com",
+            "1000101", "gnruser@account.com",
+            "1000201", "cmpnyuser@account.com",
+            "1000301", "master@account.com",
+            "1000401", "grandmaster@account.com");
+
     @BeforeEach
     void setUp() {
         msg = new MsgUtil();
@@ -60,38 +70,67 @@ class DefaultAccountCredentialInitializerTest {
                 passwordEncoder, properties, msg);
     }
 
-    private LinkedHashMap<String, String> passwordRow(String password) {
+    private LinkedHashMap<String, String> row(String password, String mailAddress) {
         LinkedHashMap<String, String> row = new LinkedHashMap<>();
         row.put("PASSWORD", password);
+        row.put("MAIL_ADDRESS", mailAddress);
         return row;
     }
 
+    /** SELECTの第2引数(ACCNT_IDリスト)に応じて、各アカウントのデフォルト値(シード相当)の行を返すようスタブする */
+    private void stubDefaultRowsForAllAccounts() {
+        when(recordQueryService.select(anyString(), any())).thenAnswer(invocation -> {
+            List<String> params = invocation.getArgument(1);
+            String accntId = params.get(0);
+            return new ArrayList<>(List.of(
+                    row(DefaultAccountCredentialInitializer.DEFAULT_PASSWORD_HASH,
+                            DEFAULT_MAIL_ADDRESS_BY_ID.get(accntId))));
+        });
+    }
+
     @Test
-    void デフォルトパスワードのままの全5アカウントがSSMの値で更新されること() {
+    void デフォルトのままの全5アカウントのパスワードとメールアドレスがSSMの値で更新されること() {
 
         when(properties.getParameterPrefix()).thenReturn("/taskall-v2/accnt");
-        when(recordQueryService.select(anyString(), any()))
-                .thenReturn(new java.util.ArrayList<>(
-                        List.of(passwordRow(DefaultAccountCredentialInitializer.DEFAULT_PASSWORD_HASH))));
-        when(ssmParameterFetcher.fetchSecureString(anyString())).thenReturn(Optional.of("newPlainPassword"));
+        stubDefaultRowsForAllAccounts();
+        when(ssmParameterFetcher.fetchSecureString(anyString()))
+                .thenReturn(Optional.of("newValue"));
+        when(passwordEncoder.encode("newValue")).thenReturn("newHashedPassword");
+
+        initializer.run(applicationArguments);
+
+        // パスワード用・メールアドレス用の両方のパラメータが、5アカウント分取得されること
+        verify(ssmParameterFetcher).fetchSecureString("/taskall-v2/accnt/guest/password");
+        verify(ssmParameterFetcher).fetchSecureString("/taskall-v2/accnt/guest/mailAddress");
+        verify(ssmParameterFetcher).fetchSecureString("/taskall-v2/accnt/grandmaster/password");
+        verify(ssmParameterFetcher).fetchSecureString("/taskall-v2/accnt/grandmaster/mailAddress");
+        // 5アカウント分、PASSWORD・MAIL_ADDRESSの両方を含むUPDATEが実行されること
+        verify(jdbcTemplate, times(5)).update(anyString(), eq("newHashedPassword"), eq("newValue"), any(), any(),
+                any());
+    }
+
+    @Test
+    void メールアドレス用SSMパラメータが未設定の場合はパスワードのみ更新されること() {
+
+        when(properties.getParameterPrefix()).thenReturn("/taskall-v2/accnt");
+        stubDefaultRowsForAllAccounts();
+        when(ssmParameterFetcher.fetchSecureString(org.mockito.ArgumentMatchers.contains("/password")))
+                .thenReturn(Optional.of("newPlainPassword"));
+        when(ssmParameterFetcher.fetchSecureString(org.mockito.ArgumentMatchers.contains("/mailAddress")))
+                .thenReturn(Optional.empty());
         when(passwordEncoder.encode("newPlainPassword")).thenReturn("newHashedPassword");
 
         initializer.run(applicationArguments);
 
-        verify(jdbcTemplate, times(5)).update(anyString(), eq("newHashedPassword"), eq("ssm_credential_init"),
-                anyString(), anyString());
-        verify(ssmParameterFetcher).fetchSecureString("/taskall-v2/accnt/guest/password");
-        verify(ssmParameterFetcher).fetchSecureString("/taskall-v2/accnt/individual/password");
-        verify(ssmParameterFetcher).fetchSecureString("/taskall-v2/accnt/corporate/password");
-        verify(ssmParameterFetcher).fetchSecureString("/taskall-v2/accnt/master/password");
-        verify(ssmParameterFetcher).fetchSecureString("/taskall-v2/accnt/grandmaster/password");
+        // 5アカウント分、PASSWORDのみを含むUPDATEが実行され、メールアドレスはシードデータのまま維持されること
+        verify(jdbcTemplate, times(5)).update(anyString(), eq("newHashedPassword"), any(), any(), any());
     }
 
     @Test
-    void 既にデフォルトパスワードから変更済みのアカウントは更新されないこと() {
+    void 既にパスワード_メールアドレスとも変更済みのアカウントは更新されないこと() {
 
         when(recordQueryService.select(anyString(), any()))
-                .thenReturn(new java.util.ArrayList<>(List.of(passwordRow("$2a$10$alreadyChangedHash"))));
+                .thenReturn(new ArrayList<>(List.of(row("$2a$10$alreadyChangedHash", "real@example.com"))));
 
         initializer.run(applicationArguments);
 
@@ -100,12 +139,30 @@ class DefaultAccountCredentialInitializerTest {
     }
 
     @Test
-    void SSMパラメータが未設定の場合は起動を失敗させること() {
+    void パスワードは変更済みだがメールアドレスがデフォルトのままの場合はメールアドレスのみ更新されること() {
 
         when(properties.getParameterPrefix()).thenReturn("/taskall-v2/accnt");
-        when(recordQueryService.select(anyString(), any()))
-                .thenReturn(new java.util.ArrayList<>(
-                        List.of(passwordRow(DefaultAccountCredentialInitializer.DEFAULT_PASSWORD_HASH))));
+        // パスワードは既に変更済みにするため、直接スタブする(先にstubDefaultRowsForAllAccounts()は呼ばない)
+        when(recordQueryService.select(anyString(), any())).thenAnswer(invocation -> {
+            List<String> params = invocation.getArgument(1);
+            String accntId = params.get(0);
+            return new ArrayList<>(
+                    List.of(row("$2a$10$alreadyChangedHash", DEFAULT_MAIL_ADDRESS_BY_ID.get(accntId))));
+        });
+        when(ssmParameterFetcher.fetchSecureString(org.mockito.ArgumentMatchers.contains("/mailAddress")))
+                .thenReturn(Optional.of("real@example.com"));
+
+        initializer.run(applicationArguments);
+
+        verify(ssmParameterFetcher, never()).fetchSecureString(org.mockito.ArgumentMatchers.contains("/password"));
+        verify(jdbcTemplate, times(5)).update(anyString(), eq("real@example.com"), any(), any(), any());
+    }
+
+    @Test
+    void パスワード用SSMパラメータが未設定の場合は起動を失敗させること() {
+
+        when(properties.getParameterPrefix()).thenReturn("/taskall-v2/accnt");
+        stubDefaultRowsForAllAccounts();
         when(ssmParameterFetcher.fetchSecureString(anyString())).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> initializer.run(applicationArguments))
@@ -115,7 +172,7 @@ class DefaultAccountCredentialInitializerTest {
     @Test
     void ACCNTにレコードが存在しない場合は起動を失敗させること() {
 
-        when(recordQueryService.select(anyString(), any())).thenReturn(new java.util.ArrayList<>());
+        when(recordQueryService.select(anyString(), any())).thenReturn(new ArrayList<>());
 
         assertThatThrownBy(() -> initializer.run(applicationArguments))
                 .isInstanceOf(ApplicationInternalException.class);
