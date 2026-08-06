@@ -234,9 +234,10 @@ GitHubリポジトリにマージする資材に、次の情報が含まれて�
   EC2ローカル履歴ディレクトリ＋専用S3バケットへの定期バックアップとして実施済み。
 - EC2インスタンスタイプの見直し（アクセス増加時等）
 - ステージング環境等の環境分離（Terraform workspace／環境別tfvars導入）
-- 特権管理者アカウントの認証情報をAWS SSM Parameter Store経由でDBへ注入する処理の実装
-  （[issue #39](https://github.com/freedomRemains/taskall-v2/issues/39)でIAM権限の付与までは
-  実施済みだが、実際の注入スクリプトはDBスキーマ・パスワードハッシュ方式を踏まえた別issueで対応する）
+- ~~特権管理者アカウントの認証情報をAWS SSM Parameter Store経由でDBへ注入する処理の実装~~
+  → [issue #41](https://github.com/freedomRemains/taskall-v2/issues/41)にて、
+  デフォルトアカウント全件のパスワード差し替え(アプリ側`DefaultAccountCredentialInitializer`)
+  および、メール接続情報の同経由での取得(`render-secrets-env.sh`)として実施済み。
 
 ---
 

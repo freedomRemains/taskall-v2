@@ -9,3 +9,9 @@ taskall:
     # (「src/main/resources/db/data」「db/sql」は初期シード専用のため、実行時の
     # 読み書きにはjar内クラスパスではなく、この作業ディレクトリを使用する)
     work-dir: ./dbmng-work
+
+  # デフォルトアカウントパスワードのSSM Parameter Store経由差し替え(issue #41)関連の設定。
+  # ローカル環境ではAWS認証情報が無くても起動できるよう、明示的に無効化しておく
+  # (デフォルト値もfalseだが、意図を明確にするため明示的に記載する)。
+  credential-init:
+    enabled: false

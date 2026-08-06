@@ -12,6 +12,11 @@
   バックアップスクリプト・systemdユニット定義）の構成と動作を説明します。
 - 本資材は[issue #39](https://github.com/freedomRemains/taskall-v2/issues/39)（
   [issue #27](https://github.com/freedomRemains/taskall-v2/issues/27)の後続issue）に対応します。
+- また、[issue #41](https://github.com/freedomRemains/taskall-v2/issues/41)
+  （issue #39のレビューで判明した、デフォルトアカウントのパスワード共有・メール接続情報未設定
+  リスクへの対応）に伴う変更もあわせて反映しています。デフォルトアカウントパスワードの
+  差し替えはアプリ側のJava処理(`DefaultAccountCredentialInitializer`)、メール接続情報の
+  取得はEC2側スクリプト(`render-secrets-env.sh`)がそれぞれAWS SSM Parameter Store経由で行います。
 - Terraform資材自体の構築手順は
   [documents/procedure/3000021_terraform.md](3000021_terraform.md)を参照してください。
   本資材は`infra/terraform/modules/ec2`から`aws_instance.user_data`として自動的に注入されるため、
@@ -121,6 +126,49 @@ infra/ec2/
 
 ---
 
+## デフォルトアカウントパスワード・メール接続情報のSSM Parameter Store経由注入(issue #41)
+
+- issue #39のレビューで、シードデータ(`src/main/resources/db/data/ACCNT.txt`)の
+  デフォルトアカウント5件(guest/gnruser/cmpnyuser/master/grandmaster)が全て同一の
+  bcryptハッシュ(平文パスワード「password」)を共有しており、かつログイン後は
+  DBメンテナンス画面から任意のテーブルデータを操作できてしまうため、本番リリース前に
+  必ず解消すべき課題として本対応を行った。
+- **デフォルトアカウントパスワードの差し替え**は、アプリ本体のJava処理
+  (`com.freedom.taskall_v2.common.db.DefaultAccountCredentialInitializer`、
+  `ApplicationRunner`)が担う。
+  - `taskall.credential-init.enabled=true`の環境（本番のEC2インスタンス）でのみ動作する
+    （ローカル開発・単体テスト実行時はAWS認証情報が無くても支障が出ないよう、既定は無効）。
+  - SSM Parameter Store(SecureString)の`{parameterPrefix}/{アカウント種別}/password`
+    (デフォルトの`parameterPrefix`は`/taskall-v2/accnt`)から平文パスワードを取得し、
+    アプリが通常のログイン照合に使う`BCryptPasswordEncoder`と同一のBeanでハッシュ化した上で、
+    `RecordQueryService`/`JdbcTemplate`経由でACCNTテーブルへ`UPDATE`する。秘匿情報は
+    JVMのメモリ上でのみ扱い、ディスク・S3等のファイルには一切書き出さない。
+  - 冪等性は「対象アカウントの現在のPASSWORDが、シードデータ由来の既知のデフォルトハッシュと
+    一致するかどうか」で判定する。既に本処理や管理者の手動変更でパスワードが変更済みの場合は
+    上書きしない。
+  - SSMパラメータが未設定の場合は、既知のデフォルトパスワードのまま本番稼働することを防ぐため、
+    アプリの起動自体を失敗させる（`ApplicationInternalException`）。
+  - `DbInitializer`(`@Order(1)`)がテーブル・シードデータを作成した**後**に実行される必要が
+    あるため、本クラスには`@Order(2)`を付与している。
+- **メール(SMTP)接続情報の取得**は、EC2側スクリプト`render-secrets-env.sh`が担う。
+  - SpringBootのメール設定(`application-prod.yaml`の`spring.mail.*`)はコンテキスト起動時に
+    `TASKALL_MAIL_*`環境変数を必要とするため、ApplicationRunner(コンテキスト起動後にしか
+    実行できない)ではなく、`taskall-v2.service`の`ExecStartPre`(アプリ起動直前に毎回実行)で
+    AWS CLIを使いSSM Parameter Store(`{project_name}/mail/{host,port,username,password}`)から
+    値を取得し、`/etc/taskall-v2/secrets.env`(パーミッション600)へ書き出す。
+  - 初回起動時は、リリースタイマーによる初回アプリ起動より前に`init.sh.tftpl`が
+    `render-secrets-env.sh`を1回実行し、あらかじめ`secrets.env`を用意しておく
+    （`taskall-v2.service`が本ファイルを`EnvironmentFile`として必須参照するため）。
+  - 以降はサービスを`restart`するたびに最新のSSM値を再取得するため、jarの再デプロイ無しで
+    メール接続情報のみをローテーションすることも可能。
+- 運用担当者は、本番への初回リリース前に、以下のSSMパラメータ(SecureString、
+  `/${project_name}/*`配下)をあらかじめ作成しておく必要がある。未作成の場合、
+  上記いずれの仕組みもアプリ・サービスの起動自体を失敗させる（意図的なフェイルセーフ）。
+  - `/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/password`
+  - `/taskall-v2/mail/{host,port,username,password}`
+
+---
+
 ## ログ・CloudWatch Logsについて
 
 - アプリ本体のログは`/var/log/taskall-v2/taskall-v2.log`に出力する（systemdの
@@ -175,5 +223,13 @@ infra/ec2/
   - `release.sh`・`backup_common.sh`単体の`bash -n`・`shellcheck`（info/warningレベルの
     指摘のみ。動的な`source`パス・Terraformテンプレート変数由来の警告であり実害なし）。
   - `cloudwatch-agent-config.json`のJSON構文チェック。
-- 実機での動作確認（EC2起動→初回リリース→ヘルスチェック→ロールバック→定期バックアップ）は、
+  - `render-secrets-env.sh`単体の`bash -n`・`shellcheck`、および`init.sh.tftpl`への
+    再埋め込み後の`bash -n`(issue #41対応分)。
+  - `./gradlew test`（`DefaultAccountCredentialInitializerTest`・`AwsSsmParameterFetcherTest`・
+    `CredentialInitPropertiesTest`を含む全単体テストが成功。`local`/`prod`両プロファイルで
+    コンテキストを起動する既存テスト(`TaskallV2ApplicationTests`・`SecurityConfigProdProfileTest`)も、
+    `taskall.credential-init.enabled`が既定でfalseのままのため、AWS認証情報が無い環境でも
+    問題なく成功することを確認）。
+- 実機での動作確認（EC2起動→初回リリース→ヘルスチェック→ロールバック→定期バックアップ、
+  および実際のSSM Parameter Store経由でのパスワード・メール接続情報注入）は、
   実際にAWS環境へ`terraform apply`した際に別途実施する。
