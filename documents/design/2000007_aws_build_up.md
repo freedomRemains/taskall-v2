@@ -227,10 +227,16 @@ GitHubリポジトリにマージする資材に、次の情報が含まれて�
 ## スコープ外（将来課題として別issue化する項目）
 
 - SQLite → RDSへの移行
-- CloudWatch監視・アラームの追加
-- SQLiteデータファイルのバックアップ（EBSスナップショット等）
+- CloudWatch監視・アラーム（メトリクスに対するアラーム設定）の追加
+  （※ログのCloudWatch Logsへの集約自体は[issue #39](https://github.com/freedomRemains/taskall-v2/issues/39)で実施済み）
+- ~~SQLiteデータファイルのバックアップ（EBSスナップショット等）~~
+  → [issue #39](https://github.com/freedomRemains/taskall-v2/issues/39)にて、
+  EC2ローカル履歴ディレクトリ＋専用S3バケットへの定期バックアップとして実施済み。
 - EC2インスタンスタイプの見直し（アクセス増加時等）
 - ステージング環境等の環境分離（Terraform workspace／環境別tfvars導入）
+- 特権管理者アカウントの認証情報をAWS SSM Parameter Store経由でDBへ注入する処理の実装
+  （[issue #39](https://github.com/freedomRemains/taskall-v2/issues/39)でIAM権限の付与までは
+  実施済みだが、実際の注入スクリプトはDBスキーマ・パスワードハッシュ方式を踏まえた別issueで対応する）
 
 ---
 

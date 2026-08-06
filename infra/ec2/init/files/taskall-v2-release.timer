@@ -1,0 +1,12 @@
+[Unit]
+Description=taskall-v2 release check every 5 minutes
+
+[Timer]
+# EC2起動後2分でまず1回実行する(初回起動時に最新アーティファクトを取得させるため)
+OnBootSec=2min
+OnUnitActiveSec=5min
+AccuracySec=30sec
+Persistent=true
+
+[Install]
+WantedBy=timers.target

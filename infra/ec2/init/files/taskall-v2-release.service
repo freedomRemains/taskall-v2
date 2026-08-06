@@ -1,0 +1,7 @@
+[Unit]
+Description=taskall-v2 release check (S3 polling)
+# 排他制御はrelease.sh内のflockで行うため、systemd側では特別な設定はしない
+
+[Service]
+Type=oneshot
+ExecStart=/opt/taskall-v2/bin/release.sh

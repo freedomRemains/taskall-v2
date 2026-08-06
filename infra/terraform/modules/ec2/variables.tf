@@ -29,3 +29,29 @@ variable "root_volume_size" {
   type        = number
   default     = 20
 }
+
+variable "aws_region" {
+  description = "EC2側スクリプト(release.sh/backup_common.sh)がAWS CLIでAWSリソースへアクセスする際に使うリージョン"
+  type        = string
+}
+
+variable "app_port" {
+  description = "アプリケーションのポート番号(systemdサービスの起動引数・ヘルスチェックに使用)"
+  type        = number
+}
+
+variable "artifact_bucket_name" {
+  description = "EC2側のリリーススクリプトがポーリングするCI/CDアーティファクト用S3バケット名"
+  type        = string
+}
+
+variable "backup_bucket_name" {
+  description = "EC2側のバックアップスクリプトがアップロードするDBバックアップ用S3バケット名"
+  type        = string
+}
+
+variable "log_group_retention_days" {
+  description = "CloudWatch Logsのアプリケーションログ保持日数"
+  type        = number
+  default     = 365
+}

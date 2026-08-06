@@ -1,0 +1,16 @@
+[Unit]
+Description=taskall-v2 Spring Boot application
+After=network.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/taskall-v2/config.env
+WorkingDirectory=/opt/taskall-v2
+ExecStart=/usr/bin/java -Xms256m -Xmx512m -jar ${APP_JAR} --server.port=${APP_PORT}
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/taskall-v2/taskall-v2.log
+StandardError=append:/var/log/taskall-v2/taskall-v2.log
+
+[Install]
+WantedBy=multi-user.target
