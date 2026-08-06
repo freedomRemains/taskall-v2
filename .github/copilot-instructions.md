@@ -283,6 +283,10 @@ read/edit 制御は `HTML_PARTS_IN_APROLE` で管理し、`AuthUtil.hasEditAuth(
   `###`見出しのセクションとして追記すること。** これにより、今後の作業で当該issueや
   pull requestの全文を読み返さなくても、要点だけを短時間で把握できるようにする
   （`documents/rules/1000002_issue_points.md`の`## 概要`節も参照）。
+- **トラブル対応の履歴を、`documents/rules/1000003_trouble_points.md`に記録する。
+  対応したトラブルの概要、原因、対応、防御策を、`###`見出しのセクションとして追記すること。**
+  これにより、今後の作業で注意すべきトラブルの防御策を把握できるようにする
+  （`documents/rules/1000003_trouble_points.md`の`## 概要`節も参照）。
 
 ## ドキュメントの管理方法
 
