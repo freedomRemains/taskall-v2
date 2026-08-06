@@ -85,6 +85,16 @@
     想定だが、Terraformで管理するのはRoute53 Hosted Zoneのみであり、ドメイン取得自体は
     AWSマネジメントコンソールから手動で行う（Terraformのaws_route53_zoneリソースは、
     取得済みドメインに対するHosted Zoneの管理のみを担う）。
+- **SES設定**
+  - メール送信にはAWS SESを使用する。
+  - 認証用メールアドレスが必要。(＜例＞no-reply@mydomain.com)
+  - AWS管理コンソールより一度設定すれば、利用できるようになる。
+  - この手続きで得られるSMTPサーバの各設定値はアプリでも利用するので、控えておくこと。
+- **SSM Parameter Store設定**
+  - 「/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/password」は5種類全部必須で設定する。
+  - 「/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/mailAddress」はメールアドレスを変更したいもののみ設定する。
+  - 「/taskall-v2/mail/{host,port,username,password}」は全て必須の設定、上記SES設定で得られた値を設定する。
+  - いずれも「安全な文字列(Secure String)」で、設定値を登録する。
 
 ---
 
