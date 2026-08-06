@@ -99,6 +99,9 @@
     - AWS管理コンソールでSESの「Create identity」を行い、「Identity type」が「Domain」のID生成を行う。
     - そこでRoute53で取得したドメイン名を入力し、DKIMを有効にする。
     - それら一連の画面操作の途中で、Route53へのレコード追加のボタンが出てくるので、クリックする。
+  - **【注意】【重要】** SES SMTPエンドポイント(email-smtp.{region}.amazonaws.com)はリージョンごとに異なるため、有効なリージョンでSESの検証・SMTP認証情報発行を行う必要あり。
+    - 本プロジェクトの「aws_region」で有効化されているリージョンでSESの検証・SMTP認証情報発行を行う必要あり。
+    - これはIaCコード上の変数となっているので、実体が変わった場合は、再度設定が必要となる。
 - **SSM Parameter Store設定**
   - 「/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/password」は5種類全部必須で設定する。
   - 「/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/mailAddress」はメールアドレスを変更したいもののみ設定する。
