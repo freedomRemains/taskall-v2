@@ -22,8 +22,45 @@ data "aws_ssm_parameter" "al2023_arm64" {
 #     読める・shellcheck等で検証できる状態を保ちたいため。
 #   - Terraform側は、これらのファイルをuser_data(EC2起動時に1回だけ実行されるcloud-init
 #     スクリプト)へ埋め込む「配線」の役割に徹する。
+#
+# これらのファイル本体をuser_dataへ直接埋め込むと、AWSの仕様上の上限(16KB)を超過して
+# terraform planが失敗する(issue #44)。そのため、ファイル本体はTerraform側でS3
+# (既存のartifact_bucket、release.sh用に既にEC2ロールへread権限付与済み)へ事前配置し、
+# user_data(init.sh.tftpl)側はS3から取得するだけの最小限のブートストラップに留める。
 locals {
-  ec2_scripts_dir = "${path.module}/../../../ec2"
+  ec2_scripts_dir    = "${path.module}/../../../ec2"
+  ec2_scripts_prefix = "ec2-scripts"
+
+  # S3オブジェクトキー(ファイル名) -> ローカルファイルパスの対応表。
+  # init.sh.tftpl側は同じファイル名でS3から取得するため、キー名は配置先ファイル名と一致させる。
+  ec2_script_files = {
+    "taskall-v2.service"           = "${local.ec2_scripts_dir}/init/files/taskall-v2.service"
+    "taskall-v2-release.service"   = "${local.ec2_scripts_dir}/init/files/taskall-v2-release.service"
+    "taskall-v2-release.timer"     = "${local.ec2_scripts_dir}/init/files/taskall-v2-release.timer"
+    "taskall-v2-backup.service"    = "${local.ec2_scripts_dir}/init/files/taskall-v2-backup.service"
+    "taskall-v2-backup.timer"      = "${local.ec2_scripts_dir}/init/files/taskall-v2-backup.timer"
+    "logrotate.conf"               = "${local.ec2_scripts_dir}/init/files/logrotate.conf"
+    "cloudwatch-agent-config.json" = "${local.ec2_scripts_dir}/init/files/cloudwatch-agent-config.json"
+    "release.sh"                   = "${local.ec2_scripts_dir}/release/release.sh"
+    "backup_common.sh"             = "${local.ec2_scripts_dir}/release/backup_common.sh"
+    "render-secrets-env.sh"        = "${local.ec2_scripts_dir}/init/files/render-secrets-env.sh"
+  }
+}
+
+# EC2側デプロイスクリプト一式を、user_data経由ではなくS3経由でEC2へ配置するためのアップロード(issue #44)。
+# etagにfilemd5を使うことで、ファイル内容が変わった場合のみオブジェクトが更新される。
+resource "aws_s3_object" "ec2_scripts" {
+  for_each = local.ec2_script_files
+
+  bucket = var.artifact_bucket_name
+  key    = "${local.ec2_scripts_prefix}/${each.key}"
+  source = each.value
+  etag   = filemd5(each.value)
+
+  tags = {
+    Name    = "${var.project_name}-ec2-script-${each.key}"
+    Project = var.project_name
+  }
 }
 
 # CloudWatch Agentが送信するアプリケーションログの格納先。タグ・保持期間をTerraform側で
@@ -51,25 +88,21 @@ resource "aws_instance" "app" {
   iam_instance_profile   = var.instance_profile_name
 
   # EC2起動時(cloud-init)に一度だけ実行され、CloudWatch Agent・systemdサービス/タイマー・
-  # logrotate等の初期構築を行う(issue #39、infra/ec2/init/init.sh.tftpl参照)
+  # logrotate等の初期構築を行う(issue #39、infra/ec2/init/init.sh.tftpl参照)。
+  # ファイル本体はaws_s3_object.ec2_scripts側で事前にS3へ配置済みのため、ここではバケット名・
+  # プレフィックスのみ渡し、init.sh側でS3から取得させる(issue #44、user_dataの16KB上限対応)。
   user_data = templatefile("${local.ec2_scripts_dir}/init/init.sh.tftpl", {
     project_name         = var.project_name
     aws_region           = var.aws_region
     artifact_bucket_name = var.artifact_bucket_name
     backup_bucket_name   = var.backup_bucket_name
     app_port             = var.app_port
-
-    taskall_v2_service         = file("${local.ec2_scripts_dir}/init/files/taskall-v2.service")
-    taskall_v2_release_service = file("${local.ec2_scripts_dir}/init/files/taskall-v2-release.service")
-    taskall_v2_release_timer   = file("${local.ec2_scripts_dir}/init/files/taskall-v2-release.timer")
-    taskall_v2_backup_service  = file("${local.ec2_scripts_dir}/init/files/taskall-v2-backup.service")
-    taskall_v2_backup_timer    = file("${local.ec2_scripts_dir}/init/files/taskall-v2-backup.timer")
-    logrotate_conf             = file("${local.ec2_scripts_dir}/init/files/logrotate.conf")
-    cloudwatch_agent_config    = file("${local.ec2_scripts_dir}/init/files/cloudwatch-agent-config.json")
-    release_sh                 = file("${local.ec2_scripts_dir}/release/release.sh")
-    backup_common_sh           = file("${local.ec2_scripts_dir}/release/backup_common.sh")
-    render_secrets_env_sh      = file("${local.ec2_scripts_dir}/init/files/render-secrets-env.sh")
+    ec2_scripts_prefix   = local.ec2_scripts_prefix
   })
+
+  # user_data実行(cloud-init)時点でS3上にスクリプト本体が存在している必要があるため、
+  # 先にaws_s3_object.ec2_scriptsのアップロードが完了していることを保証する
+  depends_on = [aws_s3_object.ec2_scripts]
 
   # Nitroベースのt4g系はEBS最適化がデフォルトで有効だが、明示的に宣言する(checkov: CKV_AWS_135)
   ebs_optimized = true

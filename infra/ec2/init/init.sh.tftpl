@@ -25,6 +25,18 @@ mkdir -p /opt/taskall-v2/bin
 mkdir -p /var/log/taskall-v2
 mkdir -p /etc/taskall-v2
 
+# EC2側デプロイスクリプト一式(systemdユニット・release.sh等)は、user_dataのサイズ上限(16KB)を
+# 超過するため直接埋め込まず、Terraform側で事前にS3(アーティファクト用バケット)へアップロード
+# しておいたものをここで取得する(issue #44)。EC2ロールには既にrelease.sh用の
+# s3:GetObject権限が付与済みのため、追加のIAM変更は不要。
+readonly EC2_SCRIPTS_S3_URI="s3://${artifact_bucket_name}/${ec2_scripts_prefix}"
+
+fetch_ec2_script() {
+  local file_name="$1"
+  local dest_path="$2"
+  aws s3 cp "$${EC2_SCRIPTS_S3_URI}/$${file_name}" "$${dest_path}" --region "${aws_region}"
+}
+
 # EC2側スクリプト共通で使う設定値(バケット名・パス等)を1箇所にまとめる。
 # ここだけがTerraformの変数値に依存し、release.sh/backup_common.sh自体は静的な内容とする。
 # taskall-v2.serviceのEnvironmentFileとしても参照されるため、アプリ(SpringBoot)自体が
@@ -50,18 +62,10 @@ HEALTH_CHECK_RETRIES=10
 HEALTH_CHECK_INTERVAL_SEC=3
 CONFIG_EOF
 
-# リリース/バックアップ/メール接続情報取得スクリプトの配置
-cat <<'SCRIPT_EOF' > /opt/taskall-v2/bin/release.sh
-${release_sh}
-SCRIPT_EOF
-
-cat <<'SCRIPT_EOF' > /opt/taskall-v2/bin/backup_common.sh
-${backup_common_sh}
-SCRIPT_EOF
-
-cat <<'SCRIPT_EOF' > /opt/taskall-v2/bin/render-secrets-env.sh
-${render_secrets_env_sh}
-SCRIPT_EOF
+# リリース/バックアップ/メール接続情報取得スクリプトの配置(issue #44、S3から取得)
+fetch_ec2_script "release.sh" /opt/taskall-v2/bin/release.sh
+fetch_ec2_script "backup_common.sh" /opt/taskall-v2/bin/backup_common.sh
+fetch_ec2_script "render-secrets-env.sh" /opt/taskall-v2/bin/render-secrets-env.sh
 
 chmod 750 /opt/taskall-v2/bin/release.sh /opt/taskall-v2/bin/backup_common.sh \
     /opt/taskall-v2/bin/render-secrets-env.sh
@@ -72,37 +76,19 @@ chmod 750 /opt/taskall-v2/bin/release.sh /opt/taskall-v2/bin/backup_common.sh \
 # ExecStartPre(taskall-v2.service)が再取得し、再デプロイ無しでのローテーションにも対応する。
 /opt/taskall-v2/bin/render-secrets-env.sh
 
-# systemdユニット・タイマーの配置
-cat <<'UNIT_EOF' > /etc/systemd/system/taskall-v2.service
-${taskall_v2_service}
-UNIT_EOF
+# systemdユニット・タイマーの配置(issue #44、S3から取得)
+fetch_ec2_script "taskall-v2.service" /etc/systemd/system/taskall-v2.service
+fetch_ec2_script "taskall-v2-release.service" /etc/systemd/system/taskall-v2-release.service
+fetch_ec2_script "taskall-v2-release.timer" /etc/systemd/system/taskall-v2-release.timer
+fetch_ec2_script "taskall-v2-backup.service" /etc/systemd/system/taskall-v2-backup.service
+fetch_ec2_script "taskall-v2-backup.timer" /etc/systemd/system/taskall-v2-backup.timer
 
-cat <<'UNIT_EOF' > /etc/systemd/system/taskall-v2-release.service
-${taskall_v2_release_service}
-UNIT_EOF
+# logrotate設定の配置(100MB上限・日次gzip圧縮・過去30日分保持、issue #44、S3から取得)
+fetch_ec2_script "logrotate.conf" /etc/logrotate.d/taskall-v2
 
-cat <<'UNIT_EOF' > /etc/systemd/system/taskall-v2-release.timer
-${taskall_v2_release_timer}
-UNIT_EOF
-
-cat <<'UNIT_EOF' > /etc/systemd/system/taskall-v2-backup.service
-${taskall_v2_backup_service}
-UNIT_EOF
-
-cat <<'UNIT_EOF' > /etc/systemd/system/taskall-v2-backup.timer
-${taskall_v2_backup_timer}
-UNIT_EOF
-
-# logrotate設定の配置(100MB上限・日次gzip圧縮・過去30日分保持)
-cat <<'LOGROTATE_EOF' > /etc/logrotate.d/taskall-v2
-${logrotate_conf}
-LOGROTATE_EOF
-
-# CloudWatch Agent設定の配置・起動
+# CloudWatch Agent設定の配置・起動(issue #44、S3から取得)
 mkdir -p /opt/aws/amazon-cloudwatch-agent/etc
-cat <<'CWAGENT_EOF' > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
-${cloudwatch_agent_config}
-CWAGENT_EOF
+fetch_ec2_script "cloudwatch-agent-config.json" /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
 
 /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
   -a fetch-config -m ec2 -s \
