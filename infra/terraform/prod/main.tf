@@ -47,10 +47,28 @@ module "security_group" {
   app_port     = var.app_port
 }
 
+# GitHub Actions CI/CDがビルド成果物(jar)をアップロードするS3バケット。
+# EC2側のIAM Role(release.shのポーリング対象)より前段で参照する必要があるため、
+# ここでモジュール呼び出し順を先に配置する。
+module "artifact_bucket" {
+  source = "../modules/artifact_bucket"
+
+  project_name = var.project_name
+}
+
+# EC2側のバックアップスクリプトがDBバックアップをアップロードするS3バケット(issue #39)
+module "backup_bucket" {
+  source = "../modules/backup_bucket"
+
+  project_name = var.project_name
+}
+
 module "iam_ec2_role" {
   source = "../modules/iam_ec2_role"
 
-  project_name = var.project_name
+  project_name        = var.project_name
+  artifact_bucket_arn = module.artifact_bucket.bucket_arn
+  backup_bucket_arn   = module.backup_bucket.bucket_arn
 }
 
 module "ec2" {
@@ -61,6 +79,10 @@ module "ec2" {
   security_group_id     = module.security_group.security_group_id
   instance_profile_name = module.iam_ec2_role.instance_profile_name
   instance_type         = var.instance_type
+  aws_region            = var.region
+  app_port              = var.app_port
+  artifact_bucket_name  = module.artifact_bucket.bucket_name
+  backup_bucket_name    = module.backup_bucket.bucket_name
 }
 
 # ACM証明書のDNS検証・CloudFrontオリジン用Aレコードに、取得済みドメインの既存Hosted Zoneを
@@ -106,13 +128,6 @@ module "cloudfront" {
   origin_port         = var.app_port
   acm_certificate_arn = module.acm.certificate_arn
   web_acl_arn         = module.waf.web_acl_arn
-}
-
-# GitHub Actions CI/CDがビルド成果物(jar)をアップロードするS3バケット
-module "artifact_bucket" {
-  source = "../modules/artifact_bucket"
-
-  project_name = var.project_name
 }
 
 # GitHub Actions CI/CDがOIDC連携でAssumeRoleするIAM Role(develop→mainマージ時のみ使用)

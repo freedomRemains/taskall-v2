@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# EC2側の初期構築スクリプト(issue #39)。
+# Terraformの`aws_instance.user_data`としてEC2起動時(cloud-init経由)に一度だけ自動実行される。
+# CloudWatch Agentのインストール・ログ収集設定、アプリのsystemdサービス化、
+# リリース/バックアップスクリプトの配置、systemdタイマー(5分間隔のリリースポーリング・
+# 毎日3時のDBバックアップ)、logrotate設定を行う。
+# 実際のアプリ(jar)配置自体は、本スクリプトが仕込むtaskall-v2-release.timer経由の
+# release.shが担う(初回はEC2起動2分後に自動実行される)。
+set -eu
+exec > /var/log/taskall-v2-init.log 2>&1
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') [init] 初期構築を開始します"
+
+# ログのタイムスタンプ・毎日3時の定期バックアップタイマーをJST基準で解釈させるため、
+# EC2のタイムゾーンを明示的に設定する(Amazon Linux 2023の初期状態はUTC)
+timedatectl set-timezone Asia/Tokyo
+
+# CloudWatch Agent(ログ・メトリクス送信用)、SQLite CLI(オンラインバックアップ用)をインストールする。
+# AWS CLI v2はAmazon Linux 2023に標準搭載されているため、追加インストールは不要。
+dnf install -y amazon-cloudwatch-agent sqlite
+
+# ディレクトリ構成の作成
+mkdir -p /opt/taskall-v2/history
+mkdir -p /opt/taskall-v2/bin
+mkdir -p /var/log/taskall-v2
+mkdir -p /etc/taskall-v2
+
+# EC2側デプロイスクリプト一式(systemdユニット・release.sh等)は、user_dataのサイズ上限(16KB)を
+# 超過するため直接埋め込まず、Terraform側で事前にS3(アーティファクト用バケット)へアップロード
+# しておいたものをここで取得する(issue #44)。EC2ロールには既にrelease.sh用の
+# s3:GetObject権限が付与済みのため、追加のIAM変更は不要。
+readonly EC2_SCRIPTS_S3_URI="s3://${artifact_bucket_name}/${ec2_scripts_prefix}"
+
+fetch_ec2_script() {
+  local file_name="$1"
+  local dest_path="$2"
+  aws s3 cp "$${EC2_SCRIPTS_S3_URI}/$${file_name}" "$${dest_path}" --region "${aws_region}"
+}
+
+# EC2側スクリプト共通で使う設定値(バケット名・パス等)を1箇所にまとめる。
+# ここだけがTerraformの変数値に依存し、release.sh/backup_common.sh自体は静的な内容とする。
+# taskall-v2.serviceのEnvironmentFileとしても参照されるため、アプリ(SpringBoot)自体が
+# 本番プロファイル(application-prod.yaml)で起動するためのSPRING_PROFILES_ACTIVEも
+# ここで明示的に設定する(未設定のままだとデフォルトのlocalプロファイルで起動してしまうため)。
+cat <<CONFIG_EOF > /etc/taskall-v2/config.env
+PROJECT_NAME=${project_name}
+AWS_REGION=${aws_region}
+ARTIFACT_BUCKET=${artifact_bucket_name}
+ARTIFACT_OBJECT_KEY=releases/taskall-v2.jar
+BACKUP_BUCKET=${backup_bucket_name}
+APP_DIR=/opt/taskall-v2
+APP_JAR=/opt/taskall-v2/taskall-v2.jar
+APP_DB=/opt/taskall-v2/taskall-v2.db
+HISTORY_DIR=/opt/taskall-v2/history
+LOG_DIR=/var/log/taskall-v2
+SERVICE_NAME=taskall-v2
+APP_PORT=${app_port}
+SPRING_PROFILES_ACTIVE=prod
+DEPLOYED_VERSION_FILE=/opt/taskall-v2/.deployed_version
+HISTORY_RETENTION_COUNT=10
+HEALTH_CHECK_RETRIES=10
+HEALTH_CHECK_INTERVAL_SEC=3
+CONFIG_EOF
+
+# リリース/バックアップ/メール接続情報取得スクリプトの配置(issue #44、S3から取得)
+fetch_ec2_script "release.sh" /opt/taskall-v2/bin/release.sh
+fetch_ec2_script "backup_common.sh" /opt/taskall-v2/bin/backup_common.sh
+fetch_ec2_script "render-secrets-env.sh" /opt/taskall-v2/bin/render-secrets-env.sh
+
+chmod 750 /opt/taskall-v2/bin/release.sh /opt/taskall-v2/bin/backup_common.sh \
+    /opt/taskall-v2/bin/render-secrets-env.sh
+
+# taskall-v2.serviceはEnvironmentFileとして/etc/taskall-v2/secrets.envを必須参照するため、
+# 初回起動時点で(リリースタイマーによる初回起動より前に)SSM Parameter Storeから
+# メール接続情報を取得し、あらかじめ生成しておく。以降はサービス起動のたびに
+# ExecStartPre(taskall-v2.service)が再取得し、再デプロイ無しでのローテーションにも対応する。
+/opt/taskall-v2/bin/render-secrets-env.sh
+
+# systemdユニット・タイマーの配置(issue #44、S3から取得)
+fetch_ec2_script "taskall-v2.service" /etc/systemd/system/taskall-v2.service
+fetch_ec2_script "taskall-v2-release.service" /etc/systemd/system/taskall-v2-release.service
+fetch_ec2_script "taskall-v2-release.timer" /etc/systemd/system/taskall-v2-release.timer
+fetch_ec2_script "taskall-v2-backup.service" /etc/systemd/system/taskall-v2-backup.service
+fetch_ec2_script "taskall-v2-backup.timer" /etc/systemd/system/taskall-v2-backup.timer
+
+# logrotate設定の配置(100MB上限・日次gzip圧縮・過去30日分保持、issue #44、S3から取得)
+fetch_ec2_script "logrotate.conf" /etc/logrotate.d/taskall-v2
+
+# CloudWatch Agent設定の配置・起動(issue #44、S3から取得)
+mkdir -p /opt/aws/amazon-cloudwatch-agent/etc
+fetch_ec2_script "cloudwatch-agent-config.json" /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 -s \
+  -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+
+# systemdへのユニット登録
+systemctl daemon-reload
+
+# taskall-v2.serviceはこの時点ではjarが未配置のため、起動せずenableのみ行う
+# (実際の初回起動はtaskall-v2-release.timer経由のrelease.shが担う。OnBootSec=2minで自動実行される)
+systemctl enable taskall-v2.service
+
+systemctl enable --now taskall-v2-release.timer
+systemctl enable --now taskall-v2-backup.timer
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') [init] 初期構築が完了しました"

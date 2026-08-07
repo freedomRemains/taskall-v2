@@ -1,0 +1,6 @@
+[Unit]
+Description=taskall-v2 daily DB/jar backup(アプリ停止・EC2再起動は行わない)
+
+[Service]
+Type=oneshot
+ExecStart=/opt/taskall-v2/bin/backup_common.sh daily

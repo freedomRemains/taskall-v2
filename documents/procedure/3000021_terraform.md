@@ -9,16 +9,19 @@
 ## 概要
 
 - 本資料は、`infra/terraform`配下のTerraform資材を使い、AWS環境（VPC / EC2 / Security Group /
-  IAM Role / ACM / WAF / CloudFront / Route53 / GitHub Actions OIDC Role / CI/CDアーティファクト用S3）
-  を構築する手順を示します。
+  IAM Role / ACM / WAF / CloudFront / Route53 / GitHub Actions OIDC Role / CI/CDアーティファクト用S3 /
+  DBバックアップ用S3）を構築する手順を示します。
 - 資材構成の詳細な設計方針は
   [documents/design/2000007_aws_build_up.md](../design/2000007_aws_build_up.md)を参照してください。
 - 本手順は[issue #29](https://github.com/freedomRemains/taskall-v2/issues/29)・
   [issue #32](https://github.com/freedomRemains/taskall-v2/issues/32)・
-  [issue #34](https://github.com/freedomRemains/taskall-v2/issues/34)（いずれも
+  [issue #34](https://github.com/freedomRemains/taskall-v2/issues/34)・
+  [issue #39](https://github.com/freedomRemains/taskall-v2/issues/39)（いずれも
   [issue #27](https://github.com/freedomRemains/taskall-v2/issues/27)の後続issue）に対応します。
 - GitHub Actions CI/CDワークフロー自体の説明・GitHub側の設定手順は
   [documents/procedure/3000031_github_actions_cicd.md](3000031_github_actions_cicd.md)を参照してください。
+- EC2側の初期構築・リリース・バックアップスクリプト(`infra/ec2`配下)自体の説明は
+  [documents/procedure/3000041_ec2_deploy_scripts.md](3000041_ec2_deploy_scripts.md)を参照してください。
 
 ---
 
@@ -40,13 +43,15 @@ infra/terraform/
   modules/
     vpc/            # VPC, Internet Gateway, Public Subnet, Route Table
     security_group/ # EC2用Security Group(CloudFront管理プレフィックスリストのみ許可)
-    iam_ec2_role/   # EC2用IAM Role(SSM接続用) + Instance Profile
-    ec2/            # EC2本体(t4g.small, Amazon Linux 2023 arm64) + Elastic IP
+    iam_ec2_role/   # EC2用IAM Role(SSM接続・CloudWatch Agent送信・S3ポーリング/バックアップ用) + Instance Profile
+    ec2/            # EC2本体(t4g.small, Amazon Linux 2023 arm64) + Elastic IP + CloudWatch Log Group
+                    # + 初期構築スクリプト(infra/ec2/init/init.sh.tftpl)をuser_dataとして注入
     acm/            # CloudFront用ACM証明書(DNS検証、us-east-1で発行)
     waf/            # CloudFrontにアタッチするWAFv2 WebACL(Core/SQLi等のAWS Managed Rule + IPレート制限)
     cloudfront/     # CloudFrontディストリビューション(EC2をカスタムオリジンとするHTTPS終端)
     route53/        # 取得済みドメインのHosted Zone参照 + CloudFrontへのAlias(A/AAAA)レコード
     artifact_bucket/  # GitHub Actions CI/CDがビルド成果物(jar)をアップロードするS3バケット
+    backup_bucket/    # EC2側のバックアップスクリプトがDBバックアップをアップロードするS3バケット
     github_oidc_role/ # GitHub Actions用OIDCプロバイダ + AssumeRole用IAM Role(develop→mainマージ時のみ許可)
 ```
 
@@ -112,6 +117,10 @@ terraform apply
   GitHub Actionsワークフローが参照できるよう、GitHub側のRepository Variableとして
   手動で設定する必要があります（設定手順は
   [documents/procedure/3000031_github_actions_cicd.md](3000031_github_actions_cicd.md)参照）。
+- `apply`完了後、`backup_bucket_name`（DBバックアップ用S3バケット名）の出力値も確認できます。
+  EC2起動時のuser_data(`infra/ec2/init/init.sh.tftpl`)がこの値を自動的に設定値として
+  埋め込むため、手動設定は不要です（詳細は
+  [documents/procedure/3000041_ec2_deploy_scripts.md](3000041_ec2_deploy_scripts.md)参照）。
 
 ---
 

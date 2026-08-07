@@ -35,6 +35,14 @@ repositories {
 // 依存関係の設定
 dependencies {
 
+	// AWS SDK for Java v2のバージョンを一元管理するための設定(SSM Parameter Store経由の
+	// 認証情報注入(issue #41)で使用する。EC2のIAMロールから認証情報を自動解決するため、
+	// アプリ側で明示的な認証情報(アクセスキー等)を保持する必要はない)
+	implementation platform('software.amazon.awssdk:bom:2.51.1')
+
+	// SSM Parameter StoreからSecureStringパラメータを取得するための設定
+	implementation 'software.amazon.awssdk:ssm'
+
 	// JDBCを使用するための設定
 	implementation 'org.springframework.boot:spring-boot-starter-jdbc'
 	testImplementation 'org.springframework.boot:spring-boot-starter-jdbc-test'
