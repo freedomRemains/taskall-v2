@@ -50,9 +50,18 @@ infra/ec2/
 - `init.sh.tftpl`以外のファイルは、いずれも通常のシェルスクリプト・設定ファイルであり、
   Terraformの記法に依存しません（`shellcheck`等で単体検証できる状態を保っています）。
 - `init.sh.tftpl`は、Terraform側の`ec2`モジュール(`infra/terraform/modules/ec2/main.tf`)が
-  `templatefile()`でレンダリングし、`file()`で他の各ファイルの内容をそのまま埋め込みます。
-  Terraform変数を解決する箇所は`init.sh.tftpl`内の`/etc/taskall-v2/config.env`書き出し部分のみに
-  限定し、`release.sh`/`backup_common.sh`自体は静的な内容としています。
+  `templatefile()`でレンダリングします。Terraform変数を解決する箇所は`init.sh.tftpl`内の
+  `/etc/taskall-v2/config.env`書き出し部分・S3取得先バケット名/プレフィックスのみに限定し、
+  `release.sh`/`backup_common.sh`自体は静的な内容としています。
+- [issue #44](https://github.com/freedomRemains/taskall-v2/issues/44)対応前は、上記の各ファイルを
+  `file()`で読み込みそのまま`user_data`へ埋め込んでいましたが、埋め込み後の合計サイズが
+  AWSの`user_data`サイズ上限(16,384バイト)を超過し`terraform plan`が失敗する不具合がありました。
+  対応として、`aws_s3_object.ec2_scripts`(`infra/terraform/modules/ec2/main.tf`)で各ファイルを
+  事前にアーティファクト用S3バケット(`ec2-scripts/`プレフィックス配下)へアップロードし、
+  `init.sh.tftpl`側は`aws s3 cp`で取得するだけの最小限のブートストラップに変更しました
+  （追加のS3バケット・IAM権限は不要。`release.sh`用に既に付与済みの`s3:GetObject`権限を
+  そのまま利用しています）。`aws_instance.app`は`depends_on`で`aws_s3_object.ec2_scripts`の
+  完了を待ってから起動します。
 
 ---
 
@@ -70,15 +79,15 @@ infra/ec2/
    `application-prod.yaml`（本番用DB接続・メール送信設定等）で起動するようにする
    （未設定のままだとデフォルトの`local`プロファイルで起動してしまう不備があったため、
    issue #41対応時に追加した）。
-5. `release.sh`・`backup_common.sh`・`render-secrets-env.sh`を`/opt/taskall-v2/bin/`に配置し、
-   `render-secrets-env.sh`を1回実行してメール接続情報(SSM Parameter Store由来)を
-   `/etc/taskall-v2/secrets.env`(パーミッション600)へ書き出しておく（`taskall-v2.service`が
-   起動時に本ファイルを`EnvironmentFile`として必須参照するため、リリースタイマーによる
-   初回起動より前に用意しておく必要がある）。
+5. `release.sh`・`backup_common.sh`・`render-secrets-env.sh`をS3(`aws s3 cp`、issue #44)から
+   取得し`/opt/taskall-v2/bin/`に配置した上で、`render-secrets-env.sh`を1回実行して
+   メール接続情報(SSM Parameter Store由来)を`/etc/taskall-v2/secrets.env`(パーミッション600)
+   へ書き出しておく（`taskall-v2.service`が起動時に本ファイルを`EnvironmentFile`として
+   必須参照するため、リリースタイマーによる初回起動より前に用意しておく必要がある）。
 6. systemdユニット・タイマー(`taskall-v2.service`・`taskall-v2-release.{service,timer}`・
-   `taskall-v2-backup.{service,timer}`)を`/etc/systemd/system/`に配置する。
-7. logrotate設定を`/etc/logrotate.d/taskall-v2`に配置する。
-8. CloudWatch Agent設定を配置し、`amazon-cloudwatch-agent-ctl`で起動する。
+   `taskall-v2-backup.{service,timer}`)をS3(issue #44)から取得し`/etc/systemd/system/`に配置する。
+7. logrotate設定をS3(issue #44)から取得し`/etc/logrotate.d/taskall-v2`に配置する。
+8. CloudWatch Agent設定をS3(issue #44)から取得して配置し、`amazon-cloudwatch-agent-ctl`で起動する。
 9. `systemctl daemon-reload`後、`taskall-v2.service`は`enable`のみ行う（この時点ではjarが
    未配置のため起動しない。実際の初回起動は、後述のtaskall-v2-release.timerがEC2起動2分後に
    自動実行するrelease.shが担う）。`taskall-v2-release.timer`・`taskall-v2-backup.timer`は
