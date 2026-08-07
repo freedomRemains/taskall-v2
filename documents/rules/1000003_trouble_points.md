@@ -37,3 +37,59 @@ AIに確認や対応をお願いし、時間やクレジットを使ってしま
 4. 防御策
 
     - (同様のトラブルが起きないように防御する方策があれば記述します)
+
+---
+
+### issue #44: EC2初期化スクリプト(`user_data`)のサイズ上限超過によるterraform planエラー
+
+1. 概要
+
+    - issue #39/#41対応（PR #40/#42）マージ後、`develop`→`main`マージに先立ちユーザが
+      実機で`terraform plan`を実行したところ、`aws_instance.app`の`user_data`(`init.sh.tftpl`)に
+      対し`Error: Invalid function argument`（`file()`が指定パスにファイルを検出できない）が
+      複数発生した。
+    - 上記エラーはユーザ側のローカル作業フォルダに`infra/ec2`ディレクトリ本体を配置していな
+      かったこと（AIの作業ディレクトリと異なるローカルチェックアウト構成だったこと）が原因で、
+      ユーザ自身の作業環境の設定漏れであり実装上の不具合ではなかった。
+    - ユーザがファイル配置後に再度`terraform plan`を実行したところ、今度は
+      `Error: expected length of user_data to be in the range (0 - 16384), got ...`という、
+      AWSの`user_data`サイズ上限(16,384バイト)超過エラーが発生した。これは実装上の不具合
+      （issue #44として起票）であることが判明した。
+
+2. 原因
+
+    - `infra/terraform/modules/ec2/main.tf`の`aws_instance.app`が、`init.sh.tftpl`内で
+      `file()`関数を使い、systemdユニット定義・`release.sh`・`backup_common.sh`・
+      `render-secrets-env.sh`・CloudWatch Agent設定等、複数のファイル本体をそのまま
+      `user_data`へ埋め込んでいた。
+    - PR #40（issue #39）・PR #42（issue #41）の実装・レビュー時点では、`terraform validate`・
+      `tflint`・`checkov`はいずれも文法・セキュリティ面のチェックであり、`user_data`の
+      実際のレンダリング後サイズ(AWS固有の16KB上限)までは検証していなかったため、
+      埋め込みファイルの合計サイズが上限(約17.5KB)を超過していることに気づけなかった。
+
+3. 対応
+
+    - S3配置化(推奨案)を採用し、PR #45（issue #44）で対応した。
+    - `infra/terraform/modules/ec2/main.tf`に`aws_s3_object.ec2_scripts`を新設し、EC2側
+      デプロイスクリプト一式を事前に既存の`artifact_bucket`(`ec2-scripts/`プレフィックス配下)
+      へアップロードするようにした。`release.sh`用に既に付与済みの`s3:GetObject`権限を
+      再利用したため、追加のS3バケット・IAM変更は不要だった。`aws_instance.app`は
+      `depends_on`でアップロード完了後に起動するよう保証した。
+    - `infra/ec2/init/init.sh.tftpl`側は、各ファイルの`file()`埋め込みを廃止し、
+      `fetch_ec2_script()`関数経由の`aws s3 cp`によるS3からの取得に置き換えた。
+      レンダリング後のサイズは約17.5KB→約5.9KBに縮小した。
+    - 対応の妥当性確認として、ダミー値で`init.sh.tftpl`をPythonでレンダリングした上で
+      `bash -n`による構文検証・バイト数計測を行った。
+
+4. 防御策
+
+    - Terraformの`aws_instance`等、`user_data`に複数ファイルを`file()`/`templatefile()`で
+      埋め込む変更を行う場合は、実装完了時にレンダリング後の合計バイト数を計測し、
+      AWSの`user_data`サイズ上限(16,384バイト)を超過していないか確認する
+      （実機の`terraform apply`を伴わずとも、ダミー値でのレンダリングとバイト数計測で
+      事前に検出できるため、レビュー時のチェック項目として明示する）。
+    - `terraform plan`のエラーメッセージが「操作対象のファイル配置に関するもの
+      (`Invalid function argument`等)」なのか「AWS側の値の制約に関するもの
+      (`Invalid value for ...`のバイト数範囲等)」なのかを、対応前に切り分けて確認する。
+      前者はユーザのローカル作業環境固有の問題である可能性があるため、まずリポジトリの
+      最新化・ディレクトリ構成の一致を確認してから、実装上の不具合として扱うかを判断する。
