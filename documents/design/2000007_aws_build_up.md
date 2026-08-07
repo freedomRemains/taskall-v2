@@ -85,6 +85,28 @@
     想定だが、Terraformで管理するのはRoute53 Hosted Zoneのみであり、ドメイン取得自体は
     AWSマネジメントコンソールから手動で行う（Terraformのaws_route53_zoneリソースは、
     取得済みドメインに対するHosted Zoneの管理のみを担う）。
+- **SES設定**
+  - メール送信にはAWS SESを使用する。
+  - 認証用メールアドレスが必要。(使い始めのメール認証、＜例＞no-reply@mydomain.com)
+  - AWS管理コンソールより設定して、利用できるようにする。
+    - デフォルトだとサンドボックスモードとなってしまい、検証済みメールアドレスにしか送信できない。
+    - 一般的なアプリとしてのメール送信機能を備えるためには、「本番アクセス(Production Access)」申請が必要。
+    - **【注意】【重要】** 審査には数時間～数日かかることがあるため、リードタイムが発生する。
+  - SMTP認証情報はSES専用の「SMTP認証情報」を発行する必要あり。
+    - AWS管理コンソール上で、SES認証情報を作成する操作が必要となる。
+  - この手続きで得られるSMTPサーバの各設定値はアプリでも利用するので、控えておくこと。
+  - ドメイン検証(DKIM等)にDNSレコード追加が必要。
+    - AWS管理コンソールでSESの「Create identity」を行い、「Identity type」が「Domain」のID生成を行う。
+    - そこでRoute53で取得したドメイン名を入力し、DKIMを有効にする。
+    - それら一連の画面操作の途中で、Route53へのレコード追加のボタンが出てくるので、クリックする。
+  - **【注意】【重要】** SES SMTPエンドポイント(email-smtp.{region}.amazonaws.com)はリージョンごとに異なるため、有効なリージョンでSESの検証・SMTP認証情報発行を行う必要あり。
+    - 本プロジェクトの「aws_region」で有効化されているリージョンでSESの検証・SMTP認証情報発行を行う必要あり。
+    - これはIaCコード上の変数となっているので、実体が変わった場合は、再度設定が必要となる。
+- **SSM Parameter Store設定**
+  - 「/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/password」は5種類全部必須で設定する。
+  - 「/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/mailAddress」はメールアドレスを変更したいもののみ設定する。
+  - 「/taskall-v2/mail/{host,port,username,password}」は全て必須の設定、上記SES設定で得られた値を設定する。
+  - いずれも「安全な文字列(Secure String)」で、設定値を登録する。
 
 ---
 
@@ -227,10 +249,17 @@ GitHubリポジトリにマージする資材に、次の情報が含まれて�
 ## スコープ外（将来課題として別issue化する項目）
 
 - SQLite → RDSへの移行
-- CloudWatch監視・アラームの追加
-- SQLiteデータファイルのバックアップ（EBSスナップショット等）
+- CloudWatch監視・アラーム（メトリクスに対するアラーム設定）の追加
+  （※ログのCloudWatch Logsへの集約自体は[issue #39](https://github.com/freedomRemains/taskall-v2/issues/39)で実施済み）
+- ~~SQLiteデータファイルのバックアップ（EBSスナップショット等）~~
+  → [issue #39](https://github.com/freedomRemains/taskall-v2/issues/39)にて、
+  EC2ローカル履歴ディレクトリ＋専用S3バケットへの定期バックアップとして実施済み。
 - EC2インスタンスタイプの見直し（アクセス増加時等）
 - ステージング環境等の環境分離（Terraform workspace／環境別tfvars導入）
+- ~~特権管理者アカウントの認証情報をAWS SSM Parameter Store経由でDBへ注入する処理の実装~~
+  → [issue #41](https://github.com/freedomRemains/taskall-v2/issues/41)にて、
+  デフォルトアカウント全件のパスワード差し替え(アプリ側`DefaultAccountCredentialInitializer`)
+  および、メール接続情報の同経由での取得(`render-secrets-env.sh`)として実施済み。
 
 ---
 

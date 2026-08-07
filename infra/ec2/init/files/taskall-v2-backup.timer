@@ -1,0 +1,10 @@
+[Unit]
+Description=taskall-v2 daily backup at 03:00 JST
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+AccuracySec=1min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

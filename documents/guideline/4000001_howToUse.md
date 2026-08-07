@@ -50,6 +50,11 @@ taskall-v2は、remainz系のエンジンを使い、DBモデル構造を生か�
 - ユーザ名(メールアドレス)やパスワードは適宜変更してください。
 - トップページで「マイページ」のリンクをクリックすると、ログイン情報入力画面となります。
 - ここでゲスト以外のアカウント情報を入力することで、そのユーザによるログインが可能です。
+- 上記のパスワードはローカル開発環境向けのシードデータであり、本番環境(EC2)では起動時に
+  AWS SSM Parameter Store経由で個別のパスワードへ自動的に差し替えられます
+  （[issue #41](https://github.com/freedomRemains/taskall-v2/issues/41)、
+  詳細は[documents/procedure/3000041_ec2_deploy_scripts.md](../procedure/3000041_ec2_deploy_scripts.md)
+  参照）。
 
 ---
 

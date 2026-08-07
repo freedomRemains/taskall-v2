@@ -28,6 +28,11 @@ output "artifact_bucket_name" {
   value       = module.artifact_bucket.bucket_name
 }
 
+output "backup_bucket_name" {
+  description = "EC2側のバックアップスクリプトがアップロードするDBバックアップ用S3バケット名"
+  value       = module.backup_bucket.bucket_name
+}
+
 output "github_actions_role_arn" {
   description = "GitHub Actions CI/CDがOIDC連携でAssumeRoleするIAM Role ARN(GitHub ActionsのRepository Variableに設定する)"
   value       = module.github_oidc_role.role_arn

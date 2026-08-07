@@ -10,3 +10,12 @@ taskall:
     # デフォルトとし、環境変数での上書きも可能にする。存在しない場合は各サービスの
     # Files.createDirectories呼び出しで自動作成される。
     work-dir: ${TASKALL_DBMNG_WORK_DIR:/opt/taskall-v2/dbmng}
+
+  # デフォルトアカウントパスワードのSSM Parameter Store経由差し替え(issue #41)関連の設定。
+  # 本番のEC2デプロイでは、init.sh.tftpl(infra/terraform/modules/ec2)が/etc/taskall-v2/config.env
+  # 経由でTASKALL_CREDENTIAL_INIT_ENABLED=trueを明示的に設定する。SpringBootTestが本プロファイルを
+  # 使う既存テスト等、環境変数を設定していない実行では既定でfalse(無効)のままとし、
+  # AWS認証情報が無い環境でもコンテキスト起動に支障が出ないようにする。
+  credential-init:
+    enabled: ${TASKALL_CREDENTIAL_INIT_ENABLED:false}
+    parameter-prefix: ${TASKALL_CREDENTIAL_INIT_PARAMETER_PREFIX:/taskall-v2/accnt}
