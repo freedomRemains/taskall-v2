@@ -284,3 +284,69 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     発生したため、`prod/variables.tf`側の対応する`github_repository`変数も削除して解消）。
     実際のAWS環境への`terraform apply`・GitHub Actions上でのAssumeRole成功確認はユーザー側で
     実施予定。
+
+---
+
+### issue #39: EC2デプロイスクリプト構築 / issue #41: デフォルトアカウント認証情報のSSM経由差し替え
+
+- issue #39: https://github.com/freedomRemains/taskall-v2/issues/39
+- issue #41: https://github.com/freedomRemains/taskall-v2/issues/41
+- PR #40（`feature/39`→`develop`）: https://github.com/freedomRemains/taskall-v2/pull/40
+- PR #42（`feature/41`→`feature/39`、issue #41対応。#40へ取り込み後にマージ）:
+  https://github.com/freedomRemains/taskall-v2/pull/42
+- 関連手順書: `documents/procedure/3000041_ec2_deploy_scripts.md`
+- issue #39では、EC2上でのリリース資材ポーリング・展開（systemdタイマー、`release.sh`、
+  `flock`による多重実行防止）、`taskall-v2.service`、DBバックアップ（EC2ローカル+S3の二重化、
+  直近10世代のみローカル保持）、CloudWatch Logs連携（logrotate、CloudWatch Agent）を実装した。
+  詳細は`infra/ec2/`配下のスクリプト・`infra/terraform/modules/ec2`を参照。
+- issue #39のPR #40レビュー時に、以下2件のセキュリティ課題が発覚し、issue #41として別途対応した。
+  1. シードデータ(`src/main/resources/db/data/ACCNT.txt`)の全5アカウント
+     （guest/gnruser/cmpnyuser/master/grandmaster）が、同一のbcryptハッシュ
+     （平文パスワード「password」）を共有していた。
+  2. ログイン後、DBメンテナンス画面から任意のテーブルデータを編集できてしまうため、
+     上記の共有パスワードのまま本番リリースすると、特権アカウント（grandmaster等）経由で
+     任意のDBデータを改ざんされ得る。
+  - 対応方針として、移植元「remainz」の`DbUpdateBySqlFileService`（SQLファイルをS3経由で
+    配布・実行）方式も検討したが、秘匿情報をファイルとして一切残さないベストプラクティスとして、
+    アプリ本体のJava処理（`ApplicationRunner`）がAWS SDK経由でSSM Parameter Store
+    （SecureString）から直接値を取得する方式を採用した。
+- **issue #41実装の要点**（`com.freedom.taskall_v2.common.db.DefaultAccountCredentialInitializer`）:
+  - `@Order(2)`の`ApplicationRunner`。`DbInitializer`（`@Order(1)`、シードデータ投入）の
+    **後**に実行させる必要があるため、明示的にOrderで順序制御している。
+  - `taskall.credential-init.enabled=true`の環境（本番EC2）でのみ動作
+    （`@ConditionalOnProperty`）。ローカル開発・単体テストでAWS認証情報無しでも支障が
+    出ないよう、既定値は`false`（`custom-prod.yaml`でも`${TASKALL_CREDENTIAL_INIT_ENABLED:false}`
+    という既定`false`の環境変数展開にしている点に注意。`SecurityConfigProdProfileTest`
+    （`@ActiveProfiles("prod")`）がAWS未設定環境でも通るようにするための必須の配慮）。
+  - パスワードは`{parameterPrefix}/{アカウント種別}/password`
+    （既定`parameterPrefix`は`/taskall-v2/accnt`）から取得し、ログイン照合と同一の
+    `BCryptPasswordEncoder`Beanでハッシュ化してDBへ反映する。冪等性は「現在のPASSWORDが
+    既知のデフォルトハッシュと一致するか」で判定し、既に変更済みなら上書きしない。
+    SSM未設定の場合は、デフォルトパスワードのまま本番稼働することを防ぐため、
+    アプリの起動自体を失敗させる（`ApplicationInternalException`、フェイルセーフ設計）。
+  - PR #42レビューで追加要望を受け、メールアドレス（`MAIL_ADDRESS`）も同じ仕組みで
+    `{parameterPrefix}/{アカウント種別}/mailAddress`から差し替え可能にした。ただし
+    パスワードと異なり**SSM設定は必須ではない**（未設定ならシードのメールアドレスのまま
+    起動を継続する）。実際に受信可能な本物のメールアドレスをGitHub上のリポジトリに
+    一切コミットせずに設定できるようにするための任意項目のため。冪等性はパスワードとは
+    独立に判定する（現在のMAIL_ADDRESSが既知のデフォルト値と一致するかどうか）。
+  - SMTPメール接続情報（`spring.mail.*`）は、Springコンテキスト起動**前**に環境変数として
+    存在する必要があるため、`ApplicationRunner`では扱えず、EC2側スクリプト
+    `render-secrets-env.sh`（`taskall-v2.service`の`ExecStartPre`で毎回実行）が
+    `/${project_name}/mail/{host,port,username,password}`から取得し
+    `/etc/taskall-v2/secrets.env`（パーミッション600）へ書き出す方式とした。初回起動時のみ
+    `init.sh.tftpl`が直接1回実行し、`EnvironmentFile`必須参照による起動失敗を防いでいる。
+  - IAM（`ssm:GetParameter`/`ssm:GetParameters`）は`/${project_name}/*`配下に限定済みのため、
+    `/taskall-v2/accnt/*`・`/taskall-v2/mail/*`とも追加のIAM/Terraform変更は不要だった。
+- **本番リリース手順上の重要な順序制約**: SSM Parameter Storeへのパラメータ登録は、
+  **Terraformのplan/apply（EC2起動）よりも先に完了させる必要がある**。EC2の初回起動
+  （cloud-init）時点で`render-secrets-env.sh`実行・`taskall-v2.service`起動が走るため、
+  SSM未登録のままapplyすると初回起動時に失敗する。運用担当者が実施すべき登録項目：
+  - `/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/password`（必須、5件全部）
+  - `/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/mailAddress`
+    （任意、メールアドレスを変更したいアカウントのみ）
+  - `/taskall-v2/mail/{host,port,username,password}`（必須、全部）
+  - いずれもSecureStringとして登録する。
+- ブランチ運用: `feature/41`は`develop`ではなく`feature/39`から分岐し、PR #42も
+  `feature/39`へマージする（`feature/39`側のEC2初期化スクリプトの変更に依存するため）。
+  PR #42マージ後にPR #40（`feature/39`→`develop`）をマージする、という2段階の統合順序。

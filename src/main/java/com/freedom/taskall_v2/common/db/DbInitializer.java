@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
@@ -22,8 +23,16 @@ import org.springframework.stereotype.Component;
  * {@link DbSchemaSqlGenerator} により「db/data」配下の資材から生成し、
  * 「db/sql」配下に配置しておくものとします。
  * </p>
+ *
+ * <p>
+ * {@code @Order(1)}により、{@link com.freedom.taskall_v2.common.db.DefaultAccountCredentialInitializer}
+ * （SSM Parameter Store経由のデフォルトアカウントパスワード差し替え、issue #41）より必ず先に
+ * 実行されるようにする(初回起動時はテーブル自体が存在しないため、先にスキーマ・シードデータを
+ * 作成しておく必要がある)。
+ * </p>
  */
 @Component
+@Order(1)
 public class DbInitializer implements ApplicationRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(DbInitializer.class);
