@@ -44,6 +44,7 @@ locals {
     "release.sh"                   = "${local.ec2_scripts_dir}/release/release.sh"
     "backup_common.sh"             = "${local.ec2_scripts_dir}/release/backup_common.sh"
     "render-secrets-env.sh"        = "${local.ec2_scripts_dir}/init/files/render-secrets-env.sh"
+    "update-ec2-scripts.sh"        = "${local.ec2_scripts_dir}/init/files/update-ec2-scripts.sh"
   }
 }
 

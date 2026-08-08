@@ -7,8 +7,10 @@ Type=simple
 EnvironmentFile=/etc/taskall-v2/config.env
 EnvironmentFile=/etc/taskall-v2/secrets.env
 WorkingDirectory=/opt/taskall-v2
+# EC2側スクリプト一式(release.sh等)をS3から最新化してから起動処理に入る(issue #54)。
 # メール接続情報(SSM Parameter Store由来)を毎回の起動直前に取得し、secrets.envへ書き出す。
 # 取得に失敗した場合(SSMパラメータ未設定等)はExecStartPreが非0終了し、アプリ自体も起動しない。
+ExecStartPre=/opt/taskall-v2/bin/update-ec2-scripts.sh
 ExecStartPre=/opt/taskall-v2/bin/render-secrets-env.sh
 ExecStart=/usr/bin/java -Xms256m -Xmx512m -jar ${APP_JAR} --server.port=${APP_PORT}
 Restart=on-failure
