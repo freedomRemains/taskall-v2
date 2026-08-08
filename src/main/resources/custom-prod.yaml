@@ -18,4 +18,4 @@ taskall:
   # AWS認証情報が無い環境でもコンテキスト起動に支障が出ないようにする。
   credential-init:
     enabled: ${TASKALL_CREDENTIAL_INIT_ENABLED:false}
-    parameter-prefix: ${TASKALL_CREDENTIAL_INIT_PARAMETER_PREFIX:/taskall-v2/accnt}
+    parameter-prefix: ${TASKALL_CREDENTIAL_INIT_PARAMETER_PREFIX:/taskallv2/accnt}

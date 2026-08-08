@@ -23,7 +23,7 @@ public class CredentialInitProperties {
     private boolean enabled = false;
 
     /** SSMパラメータ名の接頭辞(この配下に「/{accountKey}/password」の形式で配置する) */
-    private String parameterPrefix = "/taskall-v2/accnt";
+    private String parameterPrefix = "/taskallv2/accnt";
 
     public boolean isEnabled() {
         return enabled;

@@ -148,7 +148,7 @@ infra/ec2/
   - `taskall.credential-init.enabled=true`の環境（本番のEC2インスタンス）でのみ動作する
     （ローカル開発・単体テスト実行時はAWS認証情報が無くても支障が出ないよう、既定は無効）。
   - SSM Parameter Store(SecureString)の`{parameterPrefix}/{アカウント種別}/password`
-    (デフォルトの`parameterPrefix`は`/taskall-v2/accnt`)から平文パスワードを取得し、
+    (デフォルトの`parameterPrefix`は`/taskallv2/accnt`)から平文パスワードを取得し、
     アプリが通常のログイン照合に使う`BCryptPasswordEncoder`と同一のBeanでハッシュ化した上で、
     `RecordQueryService`/`JdbcTemplate`経由でACCNTテーブルへ`UPDATE`する。秘匿情報は
     JVMのメモリ上でのみ扱い、ディスク・S3等のファイルには一切書き出さない。
@@ -185,10 +185,10 @@ infra/ec2/
   未作成の場合、上記いずれの仕組みもアプリ・サービスの起動自体を失敗させる**（意図的な
   フェイルセーフ）。メールアドレス用パラメータ(`mailAddress`)は必須ではなく、未作成の場合は
   シードデータのメールアドレスのまま起動を継続する。
-  - `/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/password`（必須）
-  - `/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/mailAddress`（任意、
+  - `/taskallv2/accnt/{guest,individual,corporate,master,grandmaster}/password`（必須）
+  - `/taskallv2/accnt/{guest,individual,corporate,master,grandmaster}/mailAddress`（任意、
     実際にメールを受信できるアドレスを設定したい場合のみ）
-  - `/taskall-v2/mail/{host,port,username,password}`（必須）
+  - `/taskallv2/mail/{host,port,username,password}`（必須）
 
 ---
 
