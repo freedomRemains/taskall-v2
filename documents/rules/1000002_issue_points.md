@@ -427,3 +427,24 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
   レンダリング(6,550バイト、16KB上限内)、`checkov -d infra/terraform`
   (`Passed checks: 141, Failed checks: 0`)、`./gradlew test`全成功を確認。
   Javaコードの変更は無い。実機の`terraform apply`確認はユーザ側で実施予定。
+
+---
+
+### issue #57: NoResourceFoundExceptionの応答を404に是正し、ログレベルを下げる
+
+- issue #57: https://github.com/freedomRemains/taskall-v2/issues/57
+- 前提: issue #51対応後、実機で`https://taskall-v2.com/wp-admin/install.php`のような、
+  WordPress脆弱性スキャナ等のボットによる無差別アクセスに対し、`NoResourceFoundException`が
+  `GlobalExceptionHandler`のcatch-all(`handleUnexpectedException`)に落ち、常にERRORログ・
+  スタックトレース・500応答となっていた。本アプリはWordPress/PHPではなく実害はないが、
+  高頻度なボットスキャンでCloudWatch Logsの容量・コストを圧迫し、本当に見るべきエラーログが
+  埋もれる懸念があった。
+- 対応: `GlobalExceptionHandler`に`NoResourceFoundException`専用の`@ExceptionHandler`を追加。
+  - `@ResponseStatus(HttpStatus.NOT_FOUND)`で本来の404を返すようにした。
+  - ログは`logger.debug(...)`とし、既定のログレベルでは出力されないようにした。
+  - `e`自体をロガーに渡さず、メッセージ文字列(`e.getHttpMethod()`/`e.getResourcePath()`のみ)を
+    記録することで、将来ログレベルを引き上げて出力するようになった場合でも、スタックトレースは
+    出力されないようにした(`messages.properties`に`msg.debug.web.staticResourceNotFound`を追加)。
+- 検証: `GlobalExceptionHandlerTest`に、`/wp-admin/install.php`へのアクセスで404・
+  `error`ビューが返却されることを確認するテストを追加。`./gradlew test`全成功、
+  `./gradlew bootRun`での実機相当環境での動作確認(404応答・ERRORログ非出力)も実施済み。
