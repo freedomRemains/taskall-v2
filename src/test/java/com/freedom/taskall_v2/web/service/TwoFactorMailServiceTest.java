@@ -14,6 +14,7 @@ import org.springframework.mail.MailSendException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 
+import com.freedom.taskall_v2.common.config.MailProperties;
 import com.freedom.taskall_v2.common.exception.ApplicationInternalException;
 import com.freedom.taskall_v2.common.util.MsgUtil;
 
@@ -28,11 +29,12 @@ class TwoFactorMailServiceTest {
     // MsgUtilは実ファイル(messages.properties)を読み込むため、モック化せず実インスタンスを使う
     @org.junit.jupiter.api.BeforeEach
     void setUp() {
-        twoFactorMailService = new TwoFactorMailService(javaMailSender, new MsgUtil());
+        MailProperties mailProperties = new MailProperties();
+        twoFactorMailService = new TwoFactorMailService(javaMailSender, new MsgUtil(), mailProperties);
     }
 
     @Test
-    void 宛先件名本文を指定してメールが送信されること() {
+    void 宛先件名本文送信元を指定してメールが送信されること() {
 
         twoFactorMailService.sendPasscode("user@example.com", "042817");
 
@@ -40,6 +42,7 @@ class TwoFactorMailServiceTest {
         verify(javaMailSender).send(captor.capture());
 
         SimpleMailMessage sentMessage = captor.getValue();
+        assertThat(sentMessage.getFrom()).isEqualTo("no-reply@taskall-v2.com");
         assertThat(sentMessage.getTo()).containsExactly("user@example.com");
         assertThat(sentMessage.getSubject()).isEqualTo("二段階認証パスコード");
         assertThat(sentMessage.getText()).isEqualTo("次の6桁の数字をご入力ください。\n  042 817");
