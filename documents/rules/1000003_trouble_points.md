@@ -140,3 +140,65 @@ AIに確認や対応をお願いし、時間やクレジットを使ってしま
     - `dnf install`等でインストールするパッケージを追加・変更する際は、systemdユニット
       （`ExecStart`等）が参照する実行コマンド（`java`等）が実際にそのパッケージで
       提供されているか、事前にAmazon Linux 2023のパッケージ内容を確認する。
+
+---
+
+### issue #59: 本番環境での二段階認証エラー(SSM反映漏れ・CloudFrontヘッダー転送・ログイン初期値)
+
+1. 概要
+
+    - issue #48/#51/#54対応マージ・実機反映後、実際に本番環境で二段階認証を試行したところ、
+      正しいメールアドレス・パスワードのはずが一次認証エラーとなり、またログイン失敗時の
+      リダイレクト先が`http://origin.taskall-v2.com/...`という、ブラウザから直接アクセス
+      できない(名前解決できない)URLになる問題が発生した。あわせて、ログイン画面の入力欄に
+      特権管理者(grandmaster)のメールアドレス・パスワードがデフォルト値としてハードコード
+      されたままである点も発覚した。
+
+2. 原因
+
+    - issue #41でSSM Parameter Store経由のデフォルトアカウント認証情報差し替え機能
+      (`DefaultAccountCredentialInitializer`)を実装した際、`taskall.credential-init.enabled`を
+      本番のEC2デプロイでは`init.sh.tftpl`が`TASKALL_CREDENTIAL_INIT_ENABLED=true`を設定する
+      前提のコメントを書いていたが、実際には`init.sh.tftpl`側にその設定を追加し忘れていた。
+      このため本機能は常に既定値(false=無効)のまま起動しており、SSMに登録した本番用
+      パスワードが一切反映されず、シードデータの初期パスワードのままだった。
+    - CloudFrontはHTTP(S)接続のカスタムオリジンへの転送時、Hostヘッダーをオリジンの
+      ドメイン名(`origin.taskall-v2.com`)へ常に書き換える仕様であるため、SpringBoot側が
+      `HttpServletRequest`から絶対URLを組み立てる処理(`sendRedirect`等)が、利用者が実際に
+      アクセスした公開ドメインではなく、オリジン向けの内部ドメインを基準にURLを生成して
+      しまっていた。これはCloudFrontの標準的な既知の挙動だが、初期構築時のレビュー・検証では
+      考慮されていなかった。
+    - ログイン画面のデフォルト値は、開発時の動作確認の利便性のために設定したまま、本番向けの
+      除去対応が漏れていた。
+
+3. 対応
+
+    - `infra/ec2/init/init.sh.tftpl`の`config.env`生成部に
+      `TASKALL_CREDENTIAL_INIT_ENABLED=true`を追加した(issue #59)。
+    - CloudFrontのオリジン設定(`infra/terraform/modules/cloudfront/main.tf`)へ
+      `X-Forwarded-Host`/`X-Forwarded-Proto`のカスタムヘッダーを追加し、SpringBoot側
+      (`application-prod.yaml`)へ`server.forward-headers-strategy: framework`を追加して、
+      これらのヘッダーから正しい外部向けURLを組み立てるようにした。
+    - `20030_commonLogin.html`のメールアドレス・パスワードのデフォルト値を空文字にした。
+
+4. 防御策
+
+    - **SSM等の外部パラメータストア連携機能を追加する際は、「機能を有効化するフラグ自体が
+      実際にterraform側のuser_data/config.env生成コードに含まれているか」を、実装が
+      完了した回のセルフレビューで、`grep`等により該当の環境変数名を`infra/`配下全体から
+      横断検索し、参照側(アプリの`application-*.yaml`)と設定側(`init.sh.tftpl`等)の
+      両方に存在することを確認する。片方の実装(コメントに書いた設定手順)だけで
+      満足せず、実際に設定される行(`ENV_NAME=value`形式の代入)がコード上に存在するかを
+      機械的に確認する。**
+    - **CDN(CloudFront等)を新規に導入する、またはHTTP/HTTPS終端の構成を変更する際は、
+      「オリジンへの転送時にHostヘッダー・スキームがどう書き換わるか」を実装前に
+      AWS公式ドキュメントで確認し、アプリ側が絶対URLを組み立てる処理(リダイレクト、
+      メール本文中のURL埋め込み等)がある場合は、X-Forwarded-*ヘッダーの転送・解釈
+      (SpringBootなら`server.forward-headers-strategy`)をセットで検討・実装する。
+      本プロジェクトでは初期構築時にこの観点のレビューが漏れていたため、今後CDN配下に
+      置く新規サービス実装時は、この教訓をチェック項目として明示的に確認する。**
+    - **本番向けにリリースするテンプレート・設定ファイルへ、開発時の動作確認用の
+      認証情報や個人情報に類する値をハードコードする場合は、実装完了時に
+      `grep -rn "value=\"" src/main/resources/templates`等で全テンプレートの
+      デフォルト値埋め込み箇所を横断的に洗い出し、本番リリース前に除去漏れがないか
+      確認する。**

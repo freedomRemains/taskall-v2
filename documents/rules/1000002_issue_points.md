@@ -448,3 +448,37 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
 - 検証: `GlobalExceptionHandlerTest`に、`/wp-admin/install.php`へのアクセスで404・
   `error`ビューが返却されることを確認するテストを追加。`./gradlew test`全成功、
   `./gradlew bootRun`での実機相当環境での動作確認(404応答・ERRORログ非出力)も実施済み。
+
+---
+
+### issue #59: 二段階認証エラー(SSM認証情報未反映・リダイレクトURL不正・ログインデフォルト値除去)
+
+- issue #59: https://github.com/freedomRemains/taskall-v2/issues/59
+- 本番環境での二段階認証試行時に、3つの独立した問題が発覚した。
+  1. **一次認証エラー(SSM Parameter Store関連)**: `infra/ec2/init/init.sh.tftpl`の
+     `config.env`生成部で`TASKALL_CREDENTIAL_INIT_ENABLED=true`の設定が漏れており
+     (issue #41実装時のコメントでは設定される想定だったが、実装が伴っていなかった)、
+     `DefaultAccountCredentialInitializer`(SSM Parameter Store経由のデフォルトアカウント
+     認証情報差し替え)が常に無効(既定値false)のまま起動し、シードデータの初期パスワードの
+     ままだったため、SSMに設定した本番用パスワードでログインしようとすると一次認証に
+     失敗していた。`init.sh.tftpl`へ`TASKALL_CREDENTIAL_INIT_ENABLED=true`を追加して解消。
+     `user_data`(init.sh.tftpl)の内容変更のため、`user_data_replace_on_change=true`
+     (issue #48)により`terraform apply`時にEC2が確実に再作成され反映される。
+  2. **リダイレクトURLが`origin.taskall-v2.com`になる不具合**: CloudFrontはHTTP(S)接続の
+     オリジン(EC2)への転送時、常にHostヘッダーをオリジンのドメイン名
+     (`origin.taskall-v2.com`)へ書き換える仕様のため、SpringBoot側
+     (`AccountAuthenticationFailureHandler#onAuthenticationFailure`の
+     `response.sendRedirect(...)`等)が組み立てる絶対URLがオリジン向けドメインになって
+     しまい、ブラウザから直接アクセスできない(名前解決できない)URLへリダイレクトされていた。
+     - 対応: `infra/terraform/modules/cloudfront/main.tf`のオリジン設定へ
+       `custom_header`で`X-Forwarded-Host`(実際の公開ドメイン名)・`X-Forwarded-Proto: https`を
+       追加。SpringBoot側は`application-prod.yaml`に
+       `server.forward-headers-strategy: framework`を追加し、これらのヘッダーを解釈して
+       正しい外部向けURLを組み立てるようにした。
+  3. **ログイン画面のデフォルト値除去**: `src/main/resources/templates/parts/common/
+     20030_commonLogin.html`のメールアドレス・パスワード入力欄に、開発時の動作確認用として
+     特権管理者(`grandmaster@account.com`/`password`)の値が`value`属性としてハードコードされて
+     いたため、空文字へ変更した(本番環境で誰でもその値を閲覧・悪用できてしまう状態だったため)。
+- 検証: `./gradlew test`全成功、`checkov -d infra/terraform`(141 passed/0 failed)、
+  `bash -n`によるテンプレート構文チェック、Pythonでのダミー値による`init.sh.tftpl`レンダリング
+  (4,733 bytes、16KB上限内)で`TASKALL_CREDENTIAL_INIT_ENABLED=true`が出力に含まれることを確認。

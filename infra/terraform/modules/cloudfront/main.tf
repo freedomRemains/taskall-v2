@@ -47,6 +47,25 @@ resource "aws_cloudfront_distribution" "app" {
       origin_protocol_policy = "http-only"
       origin_ssl_protocols   = ["TLSv1.2"]
     }
+
+    # CloudFrontはオリジンへの転送時、HostヘッダーをEC2オリジンのドメイン名
+    # (origin.<domain_name>)へ常に書き換えてしまうため、SpringBoot側が
+    # HttpServletRequest#getRequestURL()等で組み立てる絶対URL(ログイン失敗時の
+    # sendRedirect等)が、利用者が実際にアクセスしたドメイン名ではなくオリジンの
+    # ドメイン名になってしまう不具合があった(issue #59)。本ディストリビューションが
+    # 受け付けるHostは`aliases`で指定した`var.domain_name`のみのため、実際にアクセスされた
+    # ドメイン名を固定値として付与できる。SpringBoot側はX-Forwarded-Host/-Protoを
+    # 解釈する設定(server.forward-headers-strategy=framework)を有効化することで、
+    # 正しい外部向けURLを組み立てられるようになる。
+    custom_header {
+      name  = "X-Forwarded-Host"
+      value = var.domain_name
+    }
+
+    custom_header {
+      name  = "X-Forwarded-Proto"
+      value = "https"
+    }
   }
 
   default_cache_behavior {
