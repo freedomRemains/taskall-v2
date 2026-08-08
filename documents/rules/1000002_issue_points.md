@@ -350,3 +350,23 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
 - ブランチ運用: `feature/41`は`develop`ではなく`feature/39`から分岐し、PR #42も
   `feature/39`へマージする（`feature/39`側のEC2初期化スクリプトの変更に依存するため）。
   PR #42マージ後にPR #40（`feature/39`→`develop`）をマージする、という2段階の統合順序。
+
+---
+
+### issue #48: 初回本番リリース試行時に起きた問題への対応
+
+- issue #48: https://github.com/freedomRemains/taskall-v2/issues/48
+- 関連: `documents/rules/1000003_trouble_points.md`（issue #48セクション参照、原因・対応の詳細記録）
+- issue本文（terraformで`user_data_replace_on_change = true`を明示する）と、コメント
+  （EC2初期構築時にJavaが未インストールだった）の2件を対応した。
+  1. `infra/terraform/modules/ec2/main.tf`の`aws_instance.app`に
+     `user_data_replace_on_change = true`を追加。以後`init.sh.tftpl`の変更は
+     `terraform plan`時点でインスタンス再作成（force replacement）が必要な変更として
+     検出できるようになる。
+  2. `infra/ec2/init/init.sh.tftpl`の`dnf install`対象に
+     `java-21-amazon-corretto-headless`を追加。`taskall-v2.service`が参照する
+     `/usr/bin/java`が確実に存在するようにした。
+- AI作業環境にはterraform/tflintバイナリが存在しないため、`init.sh.tftpl`を
+  ダミー値でPythonレンダリングした上で`bash -n`構文検証・バイト数計測（6,208バイト、
+  16KB上限内）、`checkov -d infra/terraform`（`Passed checks: 141, Failed checks: 0`）で
+  妥当性確認を行った。実機の`terraform plan`/`apply`確認はユーザ側で実施予定。

@@ -15,9 +15,12 @@ echo "$(date '+%Y-%m-%d %H:%M:%S') [init] 初期構築を開始します"
 # EC2のタイムゾーンを明示的に設定する(Amazon Linux 2023の初期状態はUTC)
 timedatectl set-timezone Asia/Tokyo
 
-# CloudWatch Agent(ログ・メトリクス送信用)、SQLite CLI(オンラインバックアップ用)をインストールする。
-# AWS CLI v2はAmazon Linux 2023に標準搭載されているため、追加インストールは不要。
-dnf install -y amazon-cloudwatch-agent sqlite
+# CloudWatch Agent(ログ・メトリクス送信用)、SQLite CLI(オンラインバックアップ用)、
+# アプリ実行に必須のJava(Amazon Corretto 21、taskall-v2.serviceが/usr/bin/javaを参照する)を
+# インストールする。初回リリース試行時、Javaが未インストールのままEC2を初期構築してしまい、
+# 初回のtaskall-v2.service起動が失敗する問題が発生したため、明示的にインストール対象へ
+# 追加した(issue #48)。AWS CLI v2はAmazon Linux 2023に標準搭載されているため、追加インストールは不要。
+dnf install -y amazon-cloudwatch-agent sqlite java-21-amazon-corretto-headless
 
 # ディレクトリ構成の作成
 mkdir -p /opt/taskall-v2/history
