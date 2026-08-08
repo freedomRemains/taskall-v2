@@ -19,3 +19,9 @@ taskall:
   credential-init:
     enabled: ${TASKALL_CREDENTIAL_INIT_ENABLED:false}
     parameter-prefix: ${TASKALL_CREDENTIAL_INIT_PARAMETER_PREFIX:/taskallv2/accnt}
+
+  # 二段階認証パスコード等、アプリが送信するメールの送信元アドレス(issue #66)。
+  # SESはドメイン単位で検証済みのため、実在するメールボックスを別途作成する必要はない
+  # (未設定の場合の既定値もno-reply@taskall-v2.comだが、意図を明確にするため明示的に記載する)。
+  mail:
+    from-address: ${TASKALL_MAIL_FROM_ADDRESS:no-reply@taskall-v2.com}

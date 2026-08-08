@@ -5,6 +5,7 @@ import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
 
+import com.freedom.taskall_v2.common.config.MailProperties;
 import com.freedom.taskall_v2.common.exception.ApplicationInternalException;
 import com.freedom.taskall_v2.common.util.MsgUtil;
 
@@ -24,10 +25,12 @@ public class TwoFactorMailService {
 
     private final JavaMailSender javaMailSender;
     private final MsgUtil msg;
+    private final MailProperties mailProperties;
 
-    public TwoFactorMailService(JavaMailSender javaMailSender, MsgUtil msg) {
+    public TwoFactorMailService(JavaMailSender javaMailSender, MsgUtil msg, MailProperties mailProperties) {
         this.javaMailSender = javaMailSender;
         this.msg = msg;
+        this.mailProperties = mailProperties;
     }
 
     /**
@@ -42,6 +45,7 @@ public class TwoFactorMailService {
         String formattedPasscode = passcode.substring(0, 3) + " " + passcode.substring(3);
 
         SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(mailProperties.getFromAddress());
         message.setTo(mailAddress);
         message.setSubject(MAIL_SUBJECT);
         message.setText("次の6桁の数字をご入力ください。\n  " + formattedPasscode);

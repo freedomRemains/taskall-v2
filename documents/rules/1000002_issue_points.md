@@ -505,3 +505,32 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
   `AwsSsmParameterFetcherTest`)・設計書(`documents/design/2000007_aws_build_up.md`)・
   手順書(`documents/procedure/3000041_ec2_deploy_scripts.md`)の記載も併せて修正した。
 - 検証: `./gradlew test`全成功。
+
+---
+
+### issue #66: 二段階認証パスコードメール送信で送信元(From)アドレス未設定によりSESから拒否される
+
+- issue #66: https://github.com/freedomRemains/taskall-v2/issues/66
+- issue #63対応・マージ後、一次認証(パスワード)は成功するようになったが、本番環境で
+  二段階認証パスコードのメール送信時に`ApplicationInternalException: 二段階認証パスコード
+  のメール送信に失敗しました`が発生し、実際の原因は
+  `SMTPSendFailedException: 554 Message rejected: Email address is not verified.`
+  (送信元が`root@ip-10-0-1-193.ap-northeast-1.compute.internal`)だった。
+- 原因: `TwoFactorMailService#sendPasscode`が`SimpleMailMessage#setTo`のみ呼び出し、
+  `setFrom`を一度も呼び出していなかった。送信元未設定時、JavaMailSender/Jakarta Mailは
+  OS/JVMの既定値(実行ユーザー名@ホスト名)を自動生成するため、EC2のインスタンス内部
+  ホスト名を含むアドレスが送信元になっていた。AWS SESはサンドボックス状態では送信元・
+  宛先ともに検証済みアドレスであることを要求するため、この未検証の送信元アドレスで
+  拒否されていた(宛先自体はAWSコンソール上で検証済みだったため、送信元側の問題と判明)。
+- 対応: `src/main/java/.../common/config/MailProperties.java`を新設し(`CredentialInitProperties`
+  と同様の`@ConfigurationProperties(prefix = "taskall.mail")`パターン)、
+  `taskall.mail.from-address`(デフォルト`no-reply@taskall-v2.com`)を追加。
+  `TwoFactorMailService`のコンストラクタへ`MailProperties`を注入し、`sendPasscode`内で
+  `message.setFrom(mailProperties.getFromAddress())`を呼び出すよう修正した。
+  `custom-prod.yaml`/`custom-local.yaml`にも`taskall.mail.from-address`設定を追加し、
+  本番環境では`TASKALL_MAIL_FROM_ADDRESS`環境変数で上書き可能にした。
+  SESはドメイン(`taskall-v2.com`)単位で検証済みのため、`no-reply@taskall-v2.com`は
+  実在するメールボックスを別途用意しなくても送信元として利用可能(SESはDNSによる
+  ドメイン所有権のみ検証し、ローカルパートの実在性は問わないため)。
+- 検証: `TwoFactorMailServiceTest`に送信元アドレスの検証を追加、`MailPropertiesTest`を新設。
+  `./gradlew test`全成功。
