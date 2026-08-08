@@ -35,8 +35,10 @@ health_check() {
   local i
   for ((i = 0; i < HEALTH_CHECK_RETRIES; i++)); do
     sleep "${HEALTH_CHECK_INTERVAL_SEC}"
+    # ルートパス("/")には画面のマッピングが存在せず常に404(NoResourceFoundException)になるため、
+    # DB/業務ロジックに依存しない専用のヘルスチェック用エンドポイント(/healthz)を使う(issue #51)
     if systemctl is-active --quiet "${SERVICE_NAME}" \
-        && curl --silent --fail --max-time 5 "http://127.0.0.1:${APP_PORT}/" >/dev/null 2>&1; then
+        && curl --silent --fail --max-time 5 "http://127.0.0.1:${APP_PORT}/healthz" >/dev/null 2>&1; then
       return 0
     fi
   done

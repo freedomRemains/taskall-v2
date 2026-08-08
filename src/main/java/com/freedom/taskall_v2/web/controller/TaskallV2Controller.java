@@ -5,10 +5,12 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.freedom.taskall_v2.common.exception.ApplicationInternalException;
 import com.freedom.taskall_v2.common.util.MsgUtil;
@@ -46,6 +48,18 @@ public class TaskallV2Controller {
         this.requestHandlingService = requestHandlingService;
         this.objectMapper = objectMapper;
         this.msg = msg;
+    }
+
+    // EC2側のリリーススクリプト(release.sh)がデプロイ直後にアプリの生存確認を行うための
+    // 専用エンドポイントです(issue #51)。DBレコード駆動のhandleRequest(URI_PATTERN等)へは
+    // あえて委譲せず、DB/業務ロジックに一切依存しない固定応答のみを返します。これは、
+    // 本エンドポイントがヘルスチェック専用であり、DB未初期化・業務ロジックの不具合等とは
+    // 独立してアプリプロセス自体の生死のみを判定したいためです(認証も不要のため
+    // SecurityConfigのpermitAll対象にも含まれます)。
+    @GetMapping("/healthz")
+    @ResponseBody
+    public ResponseEntity<String> getHealthz() {
+        return ResponseEntity.ok("OK");
     }
 
     @GetMapping("/taskall-v2/service/top.html")
