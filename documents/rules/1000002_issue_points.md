@@ -370,3 +370,29 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
   ダミー値でPythonレンダリングした上で`bash -n`構文検証・バイト数計測（6,208バイト、
   16KB上限内）、`checkov -d infra/terraform`（`Passed checks: 141, Failed checks: 0`）で
   妥当性確認を行った。実機の`terraform plan`/`apply`確認はユーザ側で実施予定。
+
+---
+
+### issue #51: 本番リリース後、ヘルスチェックがルートパス404により常に失敗する問題の対応
+
+- issue #51: https://github.com/freedomRemains/taskall-v2/issues/51
+- 前提: issue #48対応後の実機`terraform apply`でEC2上のSpringBootアプリ自体は正常起動したが、
+  直後から`No static resource  for request '/'.`（`NoResourceFoundException`）が
+  連続してアプリログに記録される事象が発生した。
+- 原因: `infra/ec2/release/release.sh`の`health_check()`が、ルートパス`http://127.0.0.1:${APP_PORT}/`
+  に対して`curl --fail`していたが、本アプリは全画面が`/taskall-v2/service/*.html`配下にあり
+  `/`に対応する`@GetMapping`が存在しないため、常に404となりヘルスチェックが失敗し続けていた
+  （`HEALTH_CHECK_RETRIES`回のリトライのたびに404アクセスがログへ記録される）。
+- 対応: `TaskallV2Controller`にDB/業務ロジックに一切依存しない専用のヘルスチェック用
+  エンドポイント`GET /healthz`（固定で`200 OK`のプレーンテキストを返すのみ）を追加し、
+  `release.sh`の`health_check()`のcurl対象を`/healthz`に変更した。`SecurityConfig`は
+  既に`anyRequest().permitAll()`のため、認証設定側の変更は不要だった。
+- 設計判断: 本プロジェクトは「コントローラは`TaskallV2Controller`1つのみ」という方針だが、
+  ヘルスチェックはDBレコード駆動のURI_PATTERN/SCR機構とは無関係な純粋なインフラ用途のため、
+  同一クラス内に`handleRequest`を経由しない専用メソッドとして追加し、方針を維持しつつ
+  対応した。
+- 検証: `./gradlew test`（`TaskallV2ControllerTest`に`healthzは業務ロジックを呼び出さずOKを返すこと`
+  テストを追加、`RequestHandlingService`が呼ばれないことを`verifyNoInteractions`で確認）に加え、
+  実際に`./gradlew bootRun`でアプリを起動し、`GET /healthz`が`200 OK`を返すこと・`GET /`が
+  （想定通り）404/500になることを実機相当の環境で確認した。`bash -n`による`release.sh`の
+  構文検証も実施済み。
