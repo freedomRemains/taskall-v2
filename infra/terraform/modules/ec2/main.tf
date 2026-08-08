@@ -104,6 +104,13 @@ resource "aws_instance" "app" {
   # 先にaws_s3_object.ec2_scriptsのアップロードが完了していることを保証する
   depends_on = [aws_s3_object.ec2_scripts]
 
+  # user_data(init.sh.tftpl)の内容が変わった場合、terraform apply時にEC2インスタンスを
+  # 再作成(force replacement)させ、初期構築スクリプトの変更をplan時点で明示的に気付けるように
+  # する(issue #48)。既定値はfalseのため、この設定が無いと単にterraform apply済みの
+  # 既存インスタンスに対してuser_dataを差し替えても、次回起動(再起動)まで実質適用されず、
+  # 変更したはずの初期構築処理が実行されない問題が起き得る。
+  user_data_replace_on_change = true
+
   # Nitroベースのt4g系はEBS最適化がデフォルトで有効だが、明示的に宣言する(checkov: CKV_AWS_135)
   ebs_optimized = true
 
