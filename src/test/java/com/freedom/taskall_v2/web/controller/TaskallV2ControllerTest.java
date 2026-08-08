@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
@@ -58,6 +59,16 @@ class TaskallV2ControllerTest {
     @AfterEach
     void tearDown() {
         ((Logger) org.slf4j.LoggerFactory.getLogger(TaskallV2Controller.class)).detachAppender(listAppender);
+    }
+
+    @Test
+    void healthzは業務ロジックを呼び出さずOKを返すこと() throws Exception {
+
+        mockMvc.perform(get("/healthz"))
+                .andExpect(status().isOk())
+                .andExpect(content().string("OK"));
+
+        org.mockito.Mockito.verifyNoInteractions(requestHandlingService);
     }
 
     @Test
