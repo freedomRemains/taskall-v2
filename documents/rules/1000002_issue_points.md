@@ -396,3 +396,34 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
   実際に`./gradlew bootRun`でアプリを起動し、`GET /healthz`が`200 OK`を返すこと・`GET /`が
   （想定通り）404/500になることを実機相当の環境で確認した。`bash -n`による`release.sh`の
   構文検証も実施済み。
+
+---
+
+### issue #54: EC2デプロイスクリプト(release.sh等)の恒久的な自己更新の仕組みを追加する
+
+- issue #54: https://github.com/freedomRemains/taskall-v2/issues/54
+- 前提: issue #51対応(S3上のrelease.sh修正)後、実機で`terraform apply`を実行したが、
+  既に起動済みのEC2インスタンスには反映されず、SSM Session Manager経由の手動`aws s3 cp`
+  再取得が必要になった。これは`infra/ec2/init/init.sh.tftpl`がEC2初回起動(cloud-init)時にのみ
+  スクリプトをS3から取得する設計(issue #39/#44)だったことに起因する恒久的な設計ギャップ
+  だったため、別途issue化して対応した。
+- 対応内容:
+  1. `infra/ec2/init/files/update-ec2-scripts.sh`を新設。`release.sh`・`backup_common.sh`・
+     `render-secrets-env.sh`・自分自身(`update-ec2-scripts.sh`)をS3(`EC2_SCRIPTS_PREFIX`)から
+     再取得し上書きする「自己更新」スクリプト。
+  2. `taskall-v2.service`・`taskall-v2-release.service`・`taskall-v2-backup.service`それぞれの
+     `ExecStartPre`として`update-ec2-scripts.sh`を追加(既存の`render-secrets-env.sh`と同じ
+     パターン)。これにより、各サービスの起動・実行のたびに最新版へ自動更新される
+     (`taskall-v2-release.service`は5分間隔、`taskall-v2-backup.service`は毎日、
+     `taskall-v2.service`は起動・再起動のたび)。
+  3. `infra/ec2/init/init.sh.tftpl`の`config.env`生成箇所に`EC2_SCRIPTS_PREFIX`を追加し、
+     `update-ec2-scripts.sh`が実際のS3プレフィックスを解決できるようにした。
+     `infra/terraform/modules/ec2/main.tf`の`ec2_script_files`マップにも
+     `update-ec2-scripts.sh`を追加(S3への事前アップロード対象に含める)。
+- スコープ外(将来課題): systemdユニット定義自体(`*.service`/`*.timer`)や
+  CloudWatch Agent設定・logrotate設定の自動更新は、`daemon-reload`やタイマー再起動を伴い
+  影響範囲が大きいため、今回は対象外とした。必要になった時点で別issueとする。
+- 検証: `bash -n`による全対象シェルスクリプトの構文検証、`init.sh.tftpl`のダミー値
+  レンダリング(6,550バイト、16KB上限内)、`checkov -d infra/terraform`
+  (`Passed checks: 141, Failed checks: 0`)、`./gradlew test`全成功を確認。
+  Javaコードの変更は無い。実機の`terraform apply`確認はユーザ側で実施予定。
