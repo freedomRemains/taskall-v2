@@ -3,6 +3,13 @@
 #
 # 本番も当面はSQLiteを使用する(documents/design/2000001_base_design.md参照)。
 # 将来的にMySQLへ移行する際は、本ファイルのdatasource設定のみを差し替える想定。
+server:
+  # CloudFront経由でX-Forwarded-Host/-Protoヘッダーを付与している(issue #59)ため、
+  # HttpServletRequest#getRequestURL()等が組み立てる絶対URL(ログイン失敗時の
+  # sendRedirect等)がオリジン(EC2)側のドメイン名ではなく、利用者が実際にアクセスした
+  # ドメイン名(https)を基準にするよう、SpringBoot自体にヘッダー解釈を有効化する。
+  forward-headers-strategy: framework
+
 spring:
 
   # アプリ独自設定のインポート
