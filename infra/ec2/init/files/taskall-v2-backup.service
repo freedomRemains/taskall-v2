@@ -3,4 +3,6 @@ Description=taskall-v2 daily DB/jar backup(アプリ停止・EC2再起動は行�
 
 [Service]
 Type=oneshot
+# backup_common.shを、実行のたびにS3から最新化してから実行する(issue #54)
+ExecStartPre=/opt/taskall-v2/bin/update-ec2-scripts.sh
 ExecStart=/opt/taskall-v2/bin/backup_common.sh daily

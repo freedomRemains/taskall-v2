@@ -4,4 +4,6 @@ Description=taskall-v2 release check (S3 polling)
 
 [Service]
 Type=oneshot
+# release.sh自身を含むEC2側スクリプト一式を、実行のたびにS3から最新化してから実行する(issue #54)
+ExecStartPre=/opt/taskall-v2/bin/update-ec2-scripts.sh
 ExecStart=/opt/taskall-v2/bin/release.sh

@@ -63,15 +63,19 @@ DEPLOYED_VERSION_FILE=/opt/taskall-v2/.deployed_version
 HISTORY_RETENTION_COUNT=10
 HEALTH_CHECK_RETRIES=10
 HEALTH_CHECK_INTERVAL_SEC=3
+EC2_SCRIPTS_PREFIX=${ec2_scripts_prefix}
 CONFIG_EOF
 
-# リリース/バックアップ/メール接続情報取得スクリプトの配置(issue #44、S3から取得)
+# リリース/バックアップ/メール接続情報取得スクリプト、および自己更新スクリプトの配置
+# (issue #44、S3から取得。update-ec2-scripts.shはissue #54で追加、以降は各サービスの
+# ExecStartPreとして実行のたびに最新版へ更新される)
 fetch_ec2_script "release.sh" /opt/taskall-v2/bin/release.sh
 fetch_ec2_script "backup_common.sh" /opt/taskall-v2/bin/backup_common.sh
 fetch_ec2_script "render-secrets-env.sh" /opt/taskall-v2/bin/render-secrets-env.sh
+fetch_ec2_script "update-ec2-scripts.sh" /opt/taskall-v2/bin/update-ec2-scripts.sh
 
 chmod 750 /opt/taskall-v2/bin/release.sh /opt/taskall-v2/bin/backup_common.sh \
-    /opt/taskall-v2/bin/render-secrets-env.sh
+    /opt/taskall-v2/bin/render-secrets-env.sh /opt/taskall-v2/bin/update-ec2-scripts.sh
 
 # taskall-v2.serviceはEnvironmentFileとして/etc/taskall-v2/secrets.envを必須参照するため、
 # 初回起動時点で(リリースタイマーによる初回起動より前に)SSM Parameter Storeから
