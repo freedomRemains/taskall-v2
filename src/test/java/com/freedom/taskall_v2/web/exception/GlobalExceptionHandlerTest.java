@@ -70,4 +70,14 @@ class GlobalExceptionHandlerTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(view().name("error"));
     }
+
+    @Test
+    void 静的リソースが見つからない場合は404でエラー画面のビュー名が返却されること() throws Exception {
+
+        // WordPress脆弱性スキャナ等のボットが叩く典型的なパスを想定(マッピングが存在しないため
+        // NoResourceFoundExceptionが発生する)
+        mockMvc.perform(get("/wp-admin/install.php"))
+                .andExpect(status().isNotFound())
+                .andExpect(view().name("error"));
+    }
 }

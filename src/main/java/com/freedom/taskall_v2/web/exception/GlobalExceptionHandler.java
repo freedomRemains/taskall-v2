@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.freedom.taskall_v2.common.exception.ApplicationInternalException;
 import com.freedom.taskall_v2.common.exception.BusinessRuleViolationException;
@@ -59,6 +60,28 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public String handleApplicationInternalError(ApplicationInternalException e) {
         logger.error(msg.get("msg.err.web.applicationInternalError", e.getMessage()), e);
+        return ERROR_VIEW;
+    }
+
+    /**
+     * 静的リソース未検出({@link NoResourceFoundException})を処理します。
+     *
+     * <p>
+     * WordPress脆弱性スキャナ等のボットによる無差別アクセス(例: {@code /wp-admin/install.php})で
+     * 非常に高頻度に発生するため、他の「予期せぬ例外」と同様にERRORログ・スタックトレースを
+     * 出力し続けるとCloudWatch Logsの容量・コストを圧迫し、本当に見るべきエラーログが埋もれて
+     * しまう。そのため、応答は本来の404を返しつつ、ログは既定で出力されないDEBUGレベルとする。
+     * また、{@code e}自体をロガーへ渡さずメッセージのみ記録することで、将来ログレベルを
+     * 引き上げて出力するようになった場合でも、スタックトレースは出力されないようにする。
+     * </p>
+     *
+     * @param e 発生した静的リソース未検出例外
+     * @return エラー画面のビュー名
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public String handleNoResourceFound(NoResourceFoundException e) {
+        logger.debug(msg.get("msg.debug.web.staticResourceNotFound", e.getHttpMethod(), e.getResourcePath()));
         return ERROR_VIEW;
     }
 
