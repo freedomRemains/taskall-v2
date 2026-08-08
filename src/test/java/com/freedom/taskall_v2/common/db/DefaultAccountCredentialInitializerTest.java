@@ -91,7 +91,7 @@ class DefaultAccountCredentialInitializerTest {
     @Test
     void デフォルトのままの全5アカウントのパスワードとメールアドレスがSSMの値で更新されること() {
 
-        when(properties.getParameterPrefix()).thenReturn("/taskall-v2/accnt");
+        when(properties.getParameterPrefix()).thenReturn("/taskallv2/accnt");
         stubDefaultRowsForAllAccounts();
         when(ssmParameterFetcher.fetchSecureString(anyString()))
                 .thenReturn(Optional.of("newValue"));
@@ -100,10 +100,10 @@ class DefaultAccountCredentialInitializerTest {
         initializer.run(applicationArguments);
 
         // パスワード用・メールアドレス用の両方のパラメータが、5アカウント分取得されること
-        verify(ssmParameterFetcher).fetchSecureString("/taskall-v2/accnt/guest/password");
-        verify(ssmParameterFetcher).fetchSecureString("/taskall-v2/accnt/guest/mailAddress");
-        verify(ssmParameterFetcher).fetchSecureString("/taskall-v2/accnt/grandmaster/password");
-        verify(ssmParameterFetcher).fetchSecureString("/taskall-v2/accnt/grandmaster/mailAddress");
+        verify(ssmParameterFetcher).fetchSecureString("/taskallv2/accnt/guest/password");
+        verify(ssmParameterFetcher).fetchSecureString("/taskallv2/accnt/guest/mailAddress");
+        verify(ssmParameterFetcher).fetchSecureString("/taskallv2/accnt/grandmaster/password");
+        verify(ssmParameterFetcher).fetchSecureString("/taskallv2/accnt/grandmaster/mailAddress");
         // 5アカウント分、PASSWORD・MAIL_ADDRESSの両方を含むUPDATEが実行されること
         verify(jdbcTemplate, times(5)).update(anyString(), eq("newHashedPassword"), eq("newValue"), any(), any(),
                 any());
@@ -112,7 +112,7 @@ class DefaultAccountCredentialInitializerTest {
     @Test
     void メールアドレス用SSMパラメータが未設定の場合はパスワードのみ更新されること() {
 
-        when(properties.getParameterPrefix()).thenReturn("/taskall-v2/accnt");
+        when(properties.getParameterPrefix()).thenReturn("/taskallv2/accnt");
         stubDefaultRowsForAllAccounts();
         when(ssmParameterFetcher.fetchSecureString(org.mockito.ArgumentMatchers.contains("/password")))
                 .thenReturn(Optional.of("newPlainPassword"));
@@ -141,7 +141,7 @@ class DefaultAccountCredentialInitializerTest {
     @Test
     void パスワードは変更済みだがメールアドレスがデフォルトのままの場合はメールアドレスのみ更新されること() {
 
-        when(properties.getParameterPrefix()).thenReturn("/taskall-v2/accnt");
+        when(properties.getParameterPrefix()).thenReturn("/taskallv2/accnt");
         // パスワードは既に変更済みにするため、直接スタブする(先にstubDefaultRowsForAllAccounts()は呼ばない)
         when(recordQueryService.select(anyString(), any())).thenAnswer(invocation -> {
             List<String> params = invocation.getArgument(1);
@@ -161,7 +161,7 @@ class DefaultAccountCredentialInitializerTest {
     @Test
     void パスワード用SSMパラメータが未設定の場合は起動を失敗させること() {
 
-        when(properties.getParameterPrefix()).thenReturn("/taskall-v2/accnt");
+        when(properties.getParameterPrefix()).thenReturn("/taskallv2/accnt");
         stubDefaultRowsForAllAccounts();
         when(ssmParameterFetcher.fetchSecureString(anyString())).thenReturn(Optional.empty());
 
