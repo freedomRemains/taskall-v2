@@ -28,6 +28,6 @@ class CredentialInitPropertiesTest {
 
     @Test
     void parameterPrefixのデフォルト値が設定されていること() {
-        assertThat(credentialInitProperties.getParameterPrefix()).isEqualTo("/taskall-v2/accnt");
+        assertThat(credentialInitProperties.getParameterPrefix()).isEqualTo("/taskallv2/accnt");
     }
 }

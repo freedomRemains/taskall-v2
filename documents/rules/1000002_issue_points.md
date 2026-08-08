@@ -482,3 +482,26 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
 - 検証: `./gradlew test`全成功、`checkov -d infra/terraform`(141 passed/0 failed)、
   `bash -n`によるテンプレート構文チェック、Pythonでのダミー値による`init.sh.tftpl`レンダリング
   (4,733 bytes、16KB上限内)で`TASKALL_CREDENTIAL_INIT_ENABLED=true`が出力に含まれることを確認。
+
+---
+
+### issue #63: SSM Parameter Storeのプレフィックス不整合(taskall-v2 vs taskallv2)を修正する
+
+- issue #63: https://github.com/freedomRemains/taskall-v2/issues/63
+- issue #59対応・マージ後、本番環境で`DefaultAccountCredentialInitializer`が
+  `ApplicationInternalException: SSM Parameter Storeにデフォルトアカウントのパスワード
+  パラメータが設定されていません。parameterName=/taskall-v2/accnt/guest/password`で
+  起動失敗する問題が発生した。
+- 原因: IAMポリシー(`infra/terraform/modules/iam_ec2_role/main.tf`)は
+  `arn:aws:ssm:*:*:parameter/${var.project_name}/*`(`project_name`のデフォルトは
+  `taskallv2`、ハイフンなし)に限定して`ssm:GetParameter`を許可しており、メール接続情報
+  取得(`render-secrets-env.sh`)の`SSM_PREFIX`(`/${PROJECT_NAME}/mail`)もこれと整合していた。
+  一方、アプリ側のデフォルト値(`CredentialInitProperties.java`の`parameterPrefix`、
+  `custom-prod.yaml`の`parameter-prefix`のデフォルト展開値)だけが`/taskall-v2/accnt`
+  (ハイフンあり)になっており、IAMポリシーが許可する`/taskallv2/*`と一致していなかった。
+- 対応: アプリ側のデフォルト値を`/taskallv2/accnt`(ハイフンなし)へ修正し、IAM・メール接続
+  情報取得のプレフィックスと整合させた。関連するテスト
+  (`DefaultAccountCredentialInitializerTest`/`CredentialInitPropertiesTest`/
+  `AwsSsmParameterFetcherTest`)・設計書(`documents/design/2000007_aws_build_up.md`)・
+  手順書(`documents/procedure/3000041_ec2_deploy_scripts.md`)の記載も併せて修正した。
+- 検証: `./gradlew test`全成功。

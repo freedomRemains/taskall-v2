@@ -103,9 +103,9 @@
     - 本プロジェクトの「aws_region」で有効化されているリージョンでSESの検証・SMTP認証情報発行を行う必要あり。
     - これはIaCコード上の変数となっているので、実体が変わった場合は、再度設定が必要となる。
 - **SSM Parameter Store設定**
-  - 「/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/password」は5種類全部必須で設定する。
-  - 「/taskall-v2/accnt/{guest,individual,corporate,master,grandmaster}/mailAddress」はメールアドレスを変更したいもののみ設定する。
-  - 「/taskall-v2/mail/{host,port,username,password}」は全て必須の設定、上記SES設定で得られた値を設定する。
+  - 「/taskallv2/accnt/{guest,individual,corporate,master,grandmaster}/password」は5種類全部必須で設定する。
+  - 「/taskallv2/accnt/{guest,individual,corporate,master,grandmaster}/mailAddress」はメールアドレスを変更したいもののみ設定する。
+  - 「/taskallv2/mail/{host,port,username,password}」は全て必須の設定、上記SES設定で得られた値を設定する。
   - いずれも「安全な文字列(Secure String)」で、設定値を登録する。
 
 ---

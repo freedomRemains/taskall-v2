@@ -34,7 +34,7 @@ class AwsSsmParameterFetcherTest {
         GetParameterResponse response = GetParameterResponse.builder().parameter(parameter).build();
         when(ssmClient.getParameter(any(GetParameterRequest.class))).thenReturn(response);
 
-        Optional<String> result = fetcher.fetchSecureString("/taskall-v2/accnt/grandmaster/password");
+        Optional<String> result = fetcher.fetchSecureString("/taskallv2/accnt/grandmaster/password");
 
         assertThat(result).contains("plainValue");
     }
@@ -45,7 +45,7 @@ class AwsSsmParameterFetcherTest {
         when(ssmClient.getParameter(any(GetParameterRequest.class)))
                 .thenThrow(ParameterNotFoundException.builder().message("not found").build());
 
-        Optional<String> result = fetcher.fetchSecureString("/taskall-v2/accnt/grandmaster/password");
+        Optional<String> result = fetcher.fetchSecureString("/taskallv2/accnt/grandmaster/password");
 
         assertThat(result).isEmpty();
     }
