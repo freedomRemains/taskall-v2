@@ -52,6 +52,13 @@ class SecurityConfigTest {
     }
 
     @Test
+    void 未認証でもパスワード再設定画面のGETは許可されること() throws Exception {
+
+        mockMvc.perform(get("/taskall-v2/service/inputMail.html"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void 正しいメールアドレスとパスワードでログインするとマイページへリダイレクトされること() throws Exception {
 
         mockMvc.perform(post("/taskall-v2/service/myPage.html")
