@@ -378,6 +378,7 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
 - issue #51: https://github.com/freedomRemains/taskall-v2/issues/51
 - 前提: issue #48対応後の実機`terraform apply`でEC2上のSpringBootアプリ自体は正常起動したが、
   直後から`No static resource  for request '/'.`（`NoResourceFoundException`）が
+
   連続してアプリログに記録される事象が発生した。
 - 原因: `infra/ec2/release/release.sh`の`health_check()`が、ルートパス`http://127.0.0.1:${APP_PORT}/`
   に対して`curl --fail`していたが、本アプリは全画面が`/taskall-v2/service/*.html`配下にあり
@@ -534,3 +535,32 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
   ドメイン所有権のみ検証し、ローカルパートの実在性は問わないため)。
 - 検証: `TwoFactorMailServiceTest`に送信元アドレスの検証を追加、`MailPropertiesTest`を新設。
   `./gradlew test`全成功。
+
+---
+
+### issue #69: 「パスワードを忘れたら」機能の追加
+
+- issue #69: https://github.com/freedomRemains/taskall-v2/issues/69
+- PR #70（`feature/69`→`develop`）: https://github.com/freedomRemains/taskall-v2/pull/70
+- 関連パス:
+  - `src/main/java/com/freedom/taskall_v2/web/service/PasswordResetService.java`
+  - `src/main/java/com/freedom/taskall_v2/web/service/StartPasswordResetService.java`
+  - `src/main/java/com/freedom/taskall_v2/web/service/VerifyPasswordResetService.java`
+  - `src/main/java/com/freedom/taskall_v2/web/service/PasswordResetMailService.java`
+  - `src/main/java/com/freedom/taskall_v2/web/service/PasswordResetCleanupScheduler.java`
+  - `src/main/java/com/freedom/taskall_v2/web/util/PasswordStrengthValidator.java`
+  - `src/main/java/com/freedom/taskall_v2/web/controller/TaskallV2Controller.java`
+  - `src/main/resources/db/data/TBL_DEF.txt`
+  - `src/main/resources/db/data/{URI_PATTERN,HTML_PAGE,HTML_PARTS,PARTS_IN_PAGE,PARTS_ITEM,SCR,SCR_ELM,HTML_PARTS_IN_APROLE,GNR_KEY_VAL}.txt`
+  - `src/main/resources/templates/parts/{10140_passwordResetInputMail.html,10150_passwordResetPasscode.html}`
+  - `src/main/resources/templates/parts/common/{20030_commonLogin.html,20140_commonPasswordResetInputMail.html,20150_commonPasswordResetPasscode.html}`
+  - `src/test/java/com/freedom/taskall_v2/web/service/{PasswordResetServiceTest,StartPasswordResetServiceTest,VerifyPasswordResetServiceTest,PasswordResetMailServiceTest,PasswordResetCleanupSchedulerTest}.java`
+- 実装要点:
+  - `PASSWORD_RESET`テーブルを新設し、`(SESSION_ID, MAIL_ADDRESS)`複合一意制約・`FAIL_CNT`・`IS_LOCKED`・`EXPIRES_AT`を保持する。
+  - 1画面目はメールアドレス/新パスワード/確認用パスワードを受け付け、既存の同一メールアドレス行がロック中かつ期限内なら拒否、期限切れまたは未ロックなら削除して新規受付する。
+  - パスワード強度は「数字・英大文字・英小文字・記号を全て含む8文字以上」で検証し、エラー文言は`GNR_KEY_VAL`＋`ErrMsgService`で表示する。
+  - 2画面目は`PENDING_PASSWORD_RESET_ID`と`SESSION_ID`の整合性を確認し、`accountExists && passcodeMatches`を単一条件として扱って失敗時の`FAIL_CNT`加算を1 POSTあたり1回だけにしている。
+  - メールアドレス不存在時でも`PasswordEncoder.matches(...)`を実行し、6桁コード照合処理のタイミング差で存在可否を推測されにくくした。
+  - パスワード更新成功時は`ACCNT.PASSWORD`を更新し、`PASSWORD_RESET`行を物理削除する。
+  - `PasswordResetCleanupScheduler`を`LoginStatusCleanupScheduler`と同じ`@Scheduled(initialDelay = 10 * 60 * 1000, fixedRate = 10 * 60 * 1000)`で追加した。
+  - `db/data`変更後は`DbSchemaSqlGeneratorRealDataTest`で`db/sql`を再生成し、検証は`rm -f taskallv2.db && ./gradlew test`で実施した。
