@@ -46,7 +46,7 @@ public class VerifyPasswordResetService implements ScriptElementService {
         ObjectNode context = readAsObjectNode(contextJson);
         String sessionId = require(context, "sessionId");
         String inputCode = require(context, "PASSWORD_RESET_CODE");
-        String passwordResetId = context.path("PENDING_PASSWORD_RESET_ID").asString("");
+        String passwordResetId = context.path("pendingPasswordResetId").asString("");
 
         // セッション切れ等で再設定IDを失っている場合も、有効期限切れと同様に黙ってTOPへ戻す
         if (passwordResetId.isBlank()) {

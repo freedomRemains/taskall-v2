@@ -206,7 +206,7 @@ public class TaskallV2Controller {
         populateModel(result, model);
 
         model.addAttribute("pendingTwoFactorAccountId", session.getAttribute("pendingTwoFactorAccountId"));
-        model.addAttribute("PENDING_PASSWORD_RESET_ID", session.getAttribute("PENDING_PASSWORD_RESET_ID"));
+        model.addAttribute("pendingPasswordResetId", session.getAttribute("pendingPasswordResetId"));
 
         return resolveViewName(result);
     }
@@ -278,9 +278,9 @@ public class TaskallV2Controller {
         }
 
         // パスワード再設定(メールアドレス入力後・6桁コード待ち)中の再設定IDも同様に引き継ぐ
-        Object pendingPasswordResetId = request.getSession().getAttribute("PENDING_PASSWORD_RESET_ID");
+        Object pendingPasswordResetId = request.getSession().getAttribute("pendingPasswordResetId");
         if (pendingPasswordResetId != null) {
-            context.put("PENDING_PASSWORD_RESET_ID", pendingPasswordResetId.toString());
+            context.put("pendingPasswordResetId", pendingPasswordResetId.toString());
         }
 
         context.put("requestKind", requestKind);
@@ -302,9 +302,9 @@ public class TaskallV2Controller {
 
     private void storePendingPasswordResetIdIfExists(HttpSession session, JsonNode result) {
 
-        String pendingPasswordResetId = result.path("PENDING_PASSWORD_RESET_ID").asText("");
+        String pendingPasswordResetId = result.path("pendingPasswordResetId").asText("");
         if (!pendingPasswordResetId.isBlank()) {
-            session.setAttribute("PENDING_PASSWORD_RESET_ID", pendingPasswordResetId);
+            session.setAttribute("pendingPasswordResetId", pendingPasswordResetId);
         }
     }
 
@@ -316,7 +316,7 @@ public class TaskallV2Controller {
 
     private void clearPendingPasswordResetIdIfCompleted(HttpSession session, JsonNode result) {
         if (result.path("passwordResetCompleted").asBoolean(false)) {
-            session.removeAttribute("PENDING_PASSWORD_RESET_ID");
+            session.removeAttribute("pendingPasswordResetId");
         }
     }
 

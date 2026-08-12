@@ -131,7 +131,7 @@ class StartPasswordResetServiceTest {
         JsonNode result = objectMapper.readTree(startPasswordResetService.execute(contextJson));
 
         assertThat(result.path("destination").asString()).isEqualTo("/taskall-v2/service/resetPasscode.html");
-        assertThat(result.path("PENDING_PASSWORD_RESET_ID").asString()).isEqualTo("9");
+        assertThat(result.path("pendingPasswordResetId").asString()).isEqualTo("9");
         verify(passwordResetService).deleteByMailAddress("user@example.com");
         verify(passwordResetMailService).sendPasscode("user@example.com", "042817");
     }

@@ -93,7 +93,7 @@ public class StartPasswordResetService implements ScriptElementService {
         ObjectNode output = objectMapper.createObjectNode();
         output.put("respKind", "redirect");
         output.put("destination", "/taskall-v2/service/resetPasscode.html");
-        output.put("PENDING_PASSWORD_RESET_ID", passwordResetId);
+        output.put("pendingPasswordResetId", passwordResetId);
         return writeAsString(output);
     }
 

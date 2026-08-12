@@ -48,7 +48,7 @@ class VerifyPasswordResetServiceTest {
     }
 
     @Test
-    void PENDING_PASSWORD_RESET_IDが無い場合はトップ画面へ無言で遷移すること() throws Exception {
+    void pendingPasswordResetIdが無い場合はトップ画面へ無言で遷移すること() throws Exception {
 
         JsonNode result = objectMapper.readTree(
                 verifyPasswordResetService.execute("{\"sessionId\":\"session-1\",\"PASSWORD_RESET_CODE\":\"123456\"}"));
@@ -63,7 +63,7 @@ class VerifyPasswordResetServiceTest {
         when(passwordResetService.findById("9")).thenReturn(Optional.empty());
 
         String contextJson = objectMapper.writeValueAsString(java.util.Map.of(
-                "sessionId", "session-1", "PENDING_PASSWORD_RESET_ID", "9", "PASSWORD_RESET_CODE", "123456"));
+                "sessionId", "session-1", "pendingPasswordResetId", "9", "PASSWORD_RESET_CODE", "123456"));
 
         JsonNode result = objectMapper.readTree(verifyPasswordResetService.execute(contextJson));
 
@@ -79,7 +79,7 @@ class VerifyPasswordResetServiceTest {
         when(passwordResetService.findById("9")).thenReturn(Optional.of(row));
 
         String contextJson = objectMapper.writeValueAsString(java.util.Map.of(
-                "sessionId", "session-1", "PENDING_PASSWORD_RESET_ID", "9", "PASSWORD_RESET_CODE", "123456"));
+                "sessionId", "session-1", "pendingPasswordResetId", "9", "PASSWORD_RESET_CODE", "123456"));
 
         JsonNode result = objectMapper.readTree(verifyPasswordResetService.execute(contextJson));
 
@@ -97,7 +97,7 @@ class VerifyPasswordResetServiceTest {
         when(errMsgService.getErrMsgKey("session-1", "1000001", "1000402")).thenReturn("402");
 
         String contextJson = objectMapper.writeValueAsString(java.util.Map.of(
-                "sessionId", "session-1", "PENDING_PASSWORD_RESET_ID", "9", "PASSWORD_RESET_CODE", "123456"));
+                "sessionId", "session-1", "pendingPasswordResetId", "9", "PASSWORD_RESET_CODE", "123456"));
 
         JsonNode result = objectMapper.readTree(verifyPasswordResetService.execute(contextJson));
 
@@ -116,7 +116,7 @@ class VerifyPasswordResetServiceTest {
         when(errMsgService.getErrMsgKey("session-1", "1000001", "1000402")).thenReturn("402");
 
         String contextJson = objectMapper.writeValueAsString(java.util.Map.of(
-                "sessionId", "session-1", "PENDING_PASSWORD_RESET_ID", "9", "PASSWORD_RESET_CODE", "123456"));
+                "sessionId", "session-1", "pendingPasswordResetId", "9", "PASSWORD_RESET_CODE", "123456"));
 
         JsonNode result = objectMapper.readTree(verifyPasswordResetService.execute(contextJson));
 
@@ -139,7 +139,7 @@ class VerifyPasswordResetServiceTest {
         when(errMsgService.getErrMsgKey("session-1", "1000001", "1000402")).thenReturn("402");
 
         String contextJson = objectMapper.writeValueAsString(java.util.Map.of(
-                "sessionId", "session-1", "PENDING_PASSWORD_RESET_ID", "9", "PASSWORD_RESET_CODE", "042817"));
+                "sessionId", "session-1", "pendingPasswordResetId", "9", "PASSWORD_RESET_CODE", "042817"));
 
         JsonNode result = objectMapper.readTree(verifyPasswordResetService.execute(contextJson));
 
@@ -163,7 +163,7 @@ class VerifyPasswordResetServiceTest {
         when(passwordEncoder.matches("042817", "passcode-hash")).thenReturn(true);
 
         String contextJson = objectMapper.writeValueAsString(java.util.Map.of(
-                "sessionId", "session-1", "PENDING_PASSWORD_RESET_ID", "9", "PASSWORD_RESET_CODE", "042817"));
+                "sessionId", "session-1", "pendingPasswordResetId", "9", "PASSWORD_RESET_CODE", "042817"));
 
         JsonNode result = objectMapper.readTree(verifyPasswordResetService.execute(contextJson));
 
