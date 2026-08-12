@@ -315,4 +315,42 @@ class TaskallV2ControllerTest {
 
         assertThat(request.getSession(false).getAttribute("pendingTwoFactorAccountId")).isNull();
     }
+
+    @Test
+    void セッションにPENDING_PASSWORD_RESET_IDがある場合は入力コンテキストへ転記されModelへも設定されること() {
+
+        TaskallV2Controller controller = new TaskallV2Controller(requestHandlingService, new ObjectMapper(), msg);
+
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/taskall-v2/service/resetPasscode.html");
+        request.getSession(true).setAttribute("PENDING_PASSWORD_RESET_ID", "9");
+        Model model = new ExtendedModelMap();
+
+        when(requestHandlingService.execute(any())).thenAnswer(invocation -> {
+            String inputJson = invocation.getArgument(0);
+            assertThat(inputJson).contains("\"PENDING_PASSWORD_RESET_ID\":\"9\"");
+            return "{\"respKind\":\"forward\",\"destination\":\"10000_contents.html\"}";
+        });
+
+        controller.getResetPasscode(request, model);
+
+        assertThat(model.getAttribute("PENDING_PASSWORD_RESET_ID")).isEqualTo("9");
+    }
+
+    @Test
+    void passwordResetCompletedがtrueの場合はPENDING_PASSWORD_RESET_IDセッション属性が削除されること() {
+
+        TaskallV2Controller controller = new TaskallV2Controller(requestHandlingService, new ObjectMapper(), msg);
+
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/taskall-v2/service/resetPasscode.html");
+        request.getSession(true).setAttribute("PENDING_PASSWORD_RESET_ID", "9");
+        Model model = new ExtendedModelMap();
+
+        when(requestHandlingService.execute(any()))
+                .thenReturn("{\"respKind\":\"redirect\",\"destination\":\"/taskall-v2/service/top.html\","
+                        + "\"passwordResetCompleted\":true}");
+
+        controller.postResetPasscode(request, model);
+
+        assertThat(request.getSession(false).getAttribute("PENDING_PASSWORD_RESET_ID")).isNull();
+    }
 }
