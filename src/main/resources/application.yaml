@@ -11,3 +11,11 @@ spring:
   # 有効化する環境(プロファイル)。起動時に-Dspring.profiles.active等で上書き可能。
   profiles:
     active: local
+
+  # SpringBootによるFlywayの自動起動(FlywayAutoConfiguration)を無効化する。
+  # 本番DB更新(issue #72)は、DbInitializer(初回ブートストラップ)実行後に
+  # FlywayMigrationServiceが独自にFlywayインスタンスを構築して実行する(ベースライン化の
+  # 分岐が必要なため)。自動起動を無効化しないと、コンテキスト起動時(ApplicationRunnerより前)
+  # にデフォルト設定のFlywayが二重に動いてしまう。
+  flyway:
+    enabled: false

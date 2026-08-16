@@ -62,9 +62,15 @@ import com.freedom.taskall_v2.common.util.MsgUtil;
  * パスワード用のSSMパラメータが未設定の場合は、既知のデフォルトパスワードのまま本番リリース
  * されることを防ぐため、起動自体を失敗させる({@link ApplicationInternalException}をスローする)。
  * </p>
+ *
+ * <p>
+ * {@code @Order(3)}により、{@link com.freedom.taskall_v2.common.db.FlywayMigrationRunner}
+ * （本番DB更新の仕組み、issue #72、{@code @Order(2)}）より後に実行されるようにする。ACCNTテーブルの
+ * 変更を含むマイグレーションが適用された後の、最新スキーマに対して本クラスの処理を行うため。
+ * </p>
  */
 @Component
-@Order(2)
+@Order(3)
 @ConditionalOnProperty(prefix = "taskall.credential-init", name = "enabled", havingValue = "true")
 public class DefaultAccountCredentialInitializer implements ApplicationRunner {
 

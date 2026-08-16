@@ -72,6 +72,13 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	testImplementation 'org.springframework.security:spring-security-test'
 
+	// 本番DB更新の仕組み(issue #72)にFlywayを使用するための設定。
+	// バージョンはSpringBoot4.xの依存関係管理に任せる(dependency-managementプラグインが
+	// 解決するバージョンを使用するため、ここではバージョンを指定しない)。
+	// このバージョン(Flyway 12.x系)はJackson3(tools.jackson)に依存するため、
+	// SpringBoot4.x既定のJacksonと同系統であり、Jackson2の追加は不要。
+	implementation 'org.flywaydb:flyway-core'
+
 	// SQLiteを使うための設定
 	implementation 'org.xerial:sqlite-jdbc:3.53.2.0'
 
