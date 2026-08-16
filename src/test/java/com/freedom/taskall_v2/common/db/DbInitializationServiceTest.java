@@ -38,10 +38,9 @@ class DbInitializationServiceTest {
 
         dbInitializationService.initializeDatabase();
 
-        // 24テーブル分のDROP・CREATE（各1ステートメント）と、INSERT分（合計713ステートメント）が実行される
-        // (Task 2でLOGIN_STATUS/ACCNT_AUTH_LOCKテーブルが追加されたため、22から24へ変更)
-        // (Task 3でGNR_KEY_VALに3行追加されたため、691から694へ変更)
-        // (Task 12で二次認証画面の8ファイルに合計19行追加されたため、694から713へ変更)
-        verify(jdbcTemplate, times(24 + 24 + 713)).execute(anyString());
+        // 25テーブル分のDROP・CREATE（各1ステートメント）と、INSERT分（合計770ステートメント）が実行される
+        // (issue #69でPASSWORD_RESETテーブルが追加されたため、24から25へ変更)
+        // (同issueでパスワード再設定画面・メッセージ・画面部品関連のDBデータが増え、INSERT総数が713から770へ増加)
+        verify(jdbcTemplate, times(25 + 25 + 770)).execute(anyString());
     }
 }

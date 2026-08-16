@@ -202,3 +202,27 @@ AIに確認や対応をお願いし、時間やクレジットを使ってしま
       `grep -rn "value=\"" src/main/resources/templates`等で全テンプレートの
       デフォルト値埋め込み箇所を横断的に洗い出し、本番リリース前に除去漏れがないか
       確認する。**
+
+---
+
+### issue #69: 新規画面のDBデータ追加時に`PARTS_ITEM`と初期化件数の更新を漏らした
+
+1. 概要
+
+    - issue #69のパスワード再設定画面を追加した際、`SecurityConfigTest`で`/taskall-v2/service/inputMail.html`のGETが500となった。
+    - あわせて、`DbInitializationServiceTest`の期待件数も古いままで、フルテスト時に件数不一致で失敗した。
+
+2. 原因
+
+    - `HTML_PAGE` / `PARTS_IN_PAGE` / `HTML_PARTS`などのDBデータは追加していたが、`10000_contents.html`や共通ヘッダが参照する`PARTS_ITEM`（少なくとも`systemName`と必要なエラーメッセージ項目）の追加を漏らしていた。
+    - `DbInitializationServiceTest`は実際の`db/sql`件数に追従する必要があるが、`PASSWORD_RESET`テーブルと関連マスタ追加後の総実行件数へ更新していなかった。
+
+3. 対応
+
+    - `PARTS_ITEM.txt`へ、`inputMail.html`/`resetPasscode.html`用の`systemName`・`urlLink`・`errMsgList`定義を追加し、`DbSchemaSqlGeneratorRealDataTest`で`db/sql`を再生成した。
+    - `DbInitializationServiceTest`の期待値を、25テーブル分のDROP/CREATEと770件のINSERTに合わせて更新した。
+
+4. 防御策
+
+    - 新規画面を追加する際は、`HTML_PAGE` / `HTML_PARTS` / `PARTS_IN_PAGE`だけでなく、`PARTS_ITEM`に`systemName`・必要な画面部品用`ITEM_KEY`が揃っているかを必ず確認する。
+    - `db/data`を変更したら、`DbSchemaSqlGeneratorRealDataTest`の後に`DbInitializationServiceTest`と`rm -f taskallv2.db && ./gradlew test`を実行し、SQL実行件数のズレをその場で検出する。

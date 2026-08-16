@@ -25,10 +25,11 @@ import org.springframework.stereotype.Component;
  * </p>
  *
  * <p>
- * {@code @Order(1)}により、{@link com.freedom.taskall_v2.common.db.DefaultAccountCredentialInitializer}
- * （SSM Parameter Store経由のデフォルトアカウントパスワード差し替え、issue #41）より必ず先に
- * 実行されるようにする(初回起動時はテーブル自体が存在しないため、先にスキーマ・シードデータを
- * 作成しておく必要がある)。
+ * {@code @Order(1)}により、{@link com.freedom.taskall_v2.common.db.FlywayMigrationRunner}
+ * （本番DB更新の仕組み、issue #72、{@code @Order(2)}）・{@link DefaultAccountCredentialInitializer}
+ * （SSM Parameter Store経由のデフォルトアカウントパスワード差し替え、issue #41、{@code @Order(3)}）
+ * より必ず先に実行されるようにする(初回起動時はテーブル自体が存在しないため、先にスキーマ・
+ * シードデータを作成しておく必要がある)。
  * </p>
  */
 @Component
@@ -39,10 +40,13 @@ public class DbInitializer implements ApplicationRunner {
 
     private final TblDefTableChecker tblDefTableChecker;
     private final DbInitializationService dbInitializationService;
+    private final DbBootstrapState dbBootstrapState;
 
-    public DbInitializer(TblDefTableChecker tblDefTableChecker, DbInitializationService dbInitializationService) {
+    public DbInitializer(TblDefTableChecker tblDefTableChecker, DbInitializationService dbInitializationService,
+            DbBootstrapState dbBootstrapState) {
         this.tblDefTableChecker = tblDefTableChecker;
         this.dbInitializationService = dbInitializationService;
+        this.dbBootstrapState = dbBootstrapState;
     }
 
     @Override
@@ -54,7 +58,10 @@ public class DbInitializer implements ApplicationRunner {
         }
 
         // 初回起動時のみ、事前生成済みSQLを使って初期テーブルと初期データを投入します。
+        // 「今回の起動で新規作成した」ことを、後続のFlywayMigrationRunner(issue #72)へ
+        // 伝えるため、DbBootstrapStateへ記録しておく。
         logger.info("TBL_DEFテーブルが存在しないため、初期テーブル／データの作成を行います。");
         dbInitializationService.initializeDatabase();
+        dbBootstrapState.setFreshlyBootstrapped(true);
     }
 }

@@ -200,6 +200,44 @@ read/edit 制御は `HTML_PARTS_IN_APROLE` で管理し、`AuthUtil.hasEditAuth(
   （サロゲートキーの意味を説明する実質的なキー項目、例: `ACCNT.ACCNT_ID` に対する
   `ACCOUNT_NAME`）などの特殊カラムを持つ。
 
+## 本番DB更新の仕組み（issue #72、Flyway導入）
+
+- `src/main/resources/db/data`/`db/sql` は、あくまで**新規（未初期化）DBを最新スキーマ・
+  最新マスタデータの状態でブートストラップするため**の資材であり（`DbInitializer`が
+  「TBL_DEF」テーブル不在を検知した初回起動時のみ実行）、既にレコードが存在する
+  本番DBへ「後から差分だけを当てる」用途には使えない。本番DBへスキーマ変更・マスタデータ
+  追加を反映する場合は、**Flyway**（`org.flywaydb:flyway-core`、バージョンはSpringBootの
+  dependency-managementプラグインが管理）を使った差分マイグレーションを用いる。
+- マイグレーションファイルは `src/main/resources/db/flyway` 配下に `V2__xxx.sql`,
+  `V3__xxx.sql`, ...の形式（Flyway標準の命名規則）で追加する。「V1」は「Flyway導入前の
+  状態」を表す暗黙のベースラインとして予約済みのため、実ファイルはV2から作成する。
+- マイグレーションSQLの内容は、対象issueのPRにおける `src/main/resources/db/data/` の
+  git diffを基に、**新規追加された行のみ**（既存の共有マスタテーブル、例:
+  `HTML_PAGE`/`SCR`/`URI_PATTERN`等は本番に既存レコードがあるため、テーブル全体の
+  INSERTではなく差分のみ）を抽出して作成する。カラムの数値/文字列判定は
+  `TBL_DEF.txt`を参照し、`InsertSqlBuilder`と同じクオート規則（INTは非クオート、
+  それ以外は単一引用符で囲み`'`は`''`にエスケープ）に従う。SQLiteはDDLの列制約変更
+  （例: 既存カラムへの`UNIQUE`制約追加）に`ALTER TABLE`が使えないため、代わりに
+  `CREATE UNIQUE INDEX IF NOT EXISTS`等、SQLite/MySQL双方で意味的に同等な代替構文を使う。
+- SpringBootの自動Flyway設定（`FlywayAutoConfiguration`）は`application.yaml`の
+  `spring.flyway.enabled: false` で無効化している。本番DB更新は、`DbInitializer`
+  （`@Order(1)`、初回ブートストラップ担当）の後に実行される`FlywayMigrationRunner`
+  （`@Order(2)`）が、`FlywayMigrationService`経由で独自に`Flyway`インスタンスを構築して
+  実行する。`DefaultAccountCredentialInitializer`（デフォルトアカウントのパスワード
+  差し替え、issue #41）は`@Order(3)`とし、ACCNTスキーマ変更を含むマイグレーション適用後に
+  実行されるようにしている。
+- 「TBL_DEF」テーブルが既に存在するDB（Flyway導入前からの既存本番DB等）と、この起動で
+  `DbInitializer`が最新スキーマとして新規作成したDB（開発環境の`rm -f taskallv2.db`後の
+  起動等）とでは、ベースライン化の方針が異なる（詳細は`FlywayMigrationService`の
+  Javadoc参照）。前者は「V1」としてベースライン化した上で未適用のマイグレーションを適用し、
+  後者は「db/data」の最新資材を反映済みのため、発見できる最新バージョンとしてベースライン化
+  する（マイグレーションの二重適用によるテーブル重複エラーを避けるため）。この判定は
+  `DbBootstrapState`（`DbInitializer`が新規作成した場合に`true`を設定する状態保持Bean）を
+  介して行う。
+- 本番反映時は、当該マイグレーションファイルを追加した資材を本番環境へデプロイし、
+  アプリ再起動によって`FlywayMigrationRunner`が自動的に未適用分のみを適用する（手作業での
+  SQL実行は不要）。
+
 ## DBマスタデータの採番規則（`documents/design/2000001_base_design.md` 参照）
 
 - IDは `1000001` から採番する（`1`〜`1000000` は予約領域として使用しない）。
