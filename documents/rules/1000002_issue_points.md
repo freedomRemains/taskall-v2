@@ -656,3 +656,117 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     追加してよい(複雑化した場合のみ共通化を検討)、古い資材は目安3ヶ月変更依頼が
     無ければ`@Deprecated`化して削除候補とする、着手前に規模感の一言を伝えてコスト
     認識を共有する。
+
+---
+
+### issue #78: サインアップ機能の実装
+
+- issue #78: https://github.com/freedomRemains/taskall-v2/issues/78
+- PR #79（`feature/78`→`develop`）: https://github.com/freedomRemains/taskall-v2/pull/79
+- 関連パス:
+  - `src/main/java/com/freedom/taskall_v2/web/service/SignUpService.java`
+  - `src/main/java/com/freedom/taskall_v2/web/service/StartSignUpService.java`
+  - `src/main/java/com/freedom/taskall_v2/web/service/VerifySignUpService.java`
+  - `src/main/java/com/freedom/taskall_v2/web/service/SignUpMailService.java`
+  - `src/main/java/com/freedom/taskall_v2/web/service/SignUpCleanupScheduler.java`
+  - `src/main/java/com/freedom/taskall_v2/web/controller/TaskallV2Controller.java`
+  - `src/main/resources/db/data/TBL_DEF.txt`
+  - `src/main/resources/db/data/{URI_PATTERN,HTML_PAGE,HTML_PARTS,PARTS_IN_PAGE,PARTS_ITEM,SCR,SCR_ELM,HTML_PARTS_IN_APROLE,GNR_KEY_VAL}.txt`
+  - `src/main/resources/db/flyway/V3__add_sign_up.sql`
+  - `src/main/resources/msg/messages.properties`
+  - `src/main/resources/templates/10000_contents.html`
+  - `src/main/resources/templates/parts/{10160_signUpInput.html,10170_signUpPasscode.html}`
+  - `src/main/resources/templates/parts/common/{20160_commonSignUpInput.html,20170_commonSignUpPasscode.html}`
+  - `src/test/java/com/freedom/taskall_v2/web/service/{SignUpServiceTest,StartSignUpServiceTest,VerifySignUpServiceTest,SignUpMailServiceTest,SignUpCleanupSchedulerTest}.java`
+- 位置づけ: 規約確定までサインアップの入口は公開しない方針のため、既存画面(マイページ・
+  共通ヘッダ等)へサインアップへの導線(リンク)は一切追加していない。URLを直接叩けば動作する。
+- 実装要点(issue #69「パスワードを忘れたら」を厳密なテンプレートとして踏襲):
+  - `SIGN_UP`テーブルを新設し、`(SESSION_ID, MAIL_ADDRESS)`複合一意制約・`APROLE_ID`・
+    `ACCOUNT_NAME`・`PASSWORD_HASH`・`PASSCODE_HASH`・`FAIL_CNT`・`IS_LOCKED`・`EXPIRES_AT`を保持する。
+    `ACCOUNT_NAME`はissue本文の表には無いが、確定事項として1画面目でアカウント名入力欄を追加し
+    一時保持するため独自に追加した(TBL_DEF `1002505`)。
+  - サインアップ画面は「個人で登録(value=1)」「法人で登録(value=2)」をラジオボタン
+    (`name=ACCOUNT_KIND`)で選択させ、バックエンドで`1→APROLE_ID=1000101`/`2→1000201`に変換する。
+    画面にはID実値を出さず、`1/2`以外の改ざんパラメータは無言でトップ画面へリダイレクトする。
+  - 1画面目(`StartSignUpService`): メールアドレスは`.toLowerCase()`で正規化。パスワード確認不一致は
+    `GNR_KEY_VAL 1000406`、強度不足(`PasswordStrengthValidator`再利用)は`1000407`でエラー表示。
+    `ACCNT`に同一メール既存なら`1000408`でマイページへ、`SIGN_UP`同一メール行がロック中かつ期限内なら
+    `1000402`、それ以外(期限切れ/未ロック)は削除して新規受付。成功時は6桁コード入力画面へ遷移し
+    `pendingSignUpId`をセッションに格納。
+  - 2画面目(`VerifySignUpService`): `pendingSignUpId`空/該当行なし/セッションID不一致は無言でトップへ。
+    ロック中(期限内)は`1000402`、期限切れは行削除しトップへ、未ロックかつ期限切れは15分ロック化し
+    `1000402`。`ACCNT`に同一メール既存なら行削除し`1000409`(文言が1画面目の`1000408`と微妙に異なる)。
+    6桁コード一致なら`ACCNT`+`APROLE_IN_ACCNT`をINSERTし`SIGN_UP`行削除、`signUpCompleted=true`で
+    トップへ。不一致は`FAIL_CNT`加算、5回到達でロック(`1000402`)、未到達は`1000405`。
+  - `SignUpService.createAccount`は`GeneratedKeyHolder`で採番した`ACCNT_ID`と`SIGN_UP.APROLE_ID`を
+    使い`APROLE_IN_ACCNT`にも1行追加する。`findAccountByMailAddress`は`LOWER(MAIL_ADDRESS)=LOWER(?)`で比較。
+  - `SignUpMailService`は件名「サインアップ確認」で6桁コードを送信、送信失敗時は作成した`SIGN_UP`行を
+    削除して例外を再送出する。`SignUpCleanupScheduler`は`@Scheduled(initialDelay/fixedRate=10*60*1000)`。
+  - `TaskallV2Controller`に`/taskall-v2/service/signUp.html`・`signUpPasscode.html`(各GET/POST)を追加し、
+    `pendingSignUpId`のセッション引継ぎ・`signUpCompleted`フラグによるクリアを`pendingPasswordResetId`と
+    同じパターンで実装した。
+  - GNR_KEY_VALは既存の`1000402/1000405/1000406/1000407`を流用し、新規に`1000408`
+    (signUpMailExistsFromSignUpError)・`1000409`(signUpMailExistsFromPasscodeError)を追加した。
+  - 本番反映用に`db/flyway/V3__add_sign_up.sql`を追加(SIGN_UP CREATE + 各マスタテーブルの新規行INSERT)。
+  - 既存の件数固定テスト2件を新テーブル・新マイグレーションに合わせて更新:
+    `DbInitializationServiceTest`(25→26テーブル・770→828 INSERT)、`FlywayMigrationServiceTest`
+    (新規ブートストラップ時のベースラインバージョンを`2`→`3`、SIGN_UPテーブル作成を追加)。
+  - `db/data`変更後は`DbSchemaSqlGeneratorRealDataTest`で`db/sql`を再生成し、
+    `rm -f taskallv2.db && ./gradlew test`で全270テスト成功を確認した。
+
+#### フォローアップ: サインアップ完了時のNTC通知表示追加
+
+- 同issue #78・同PR #79への追加コミット。新規issue化はせず、サインアップ完了時に
+  「サインアップ完了しました。お手数ですが、サインインをお願いします。」を表示する依頼への対応。
+- 関連パス(追加分):
+  - `src/main/java/com/freedom/taskall_v2/web/service/NoticeService.java`(新規、`ErrMsgService`を
+    ほぼそのまま踏襲し`NTC`テーブルへ書き込む)
+  - `src/main/java/com/freedom/taskall_v2/web/service/{CreateHtmlService,VerifySignUpService}.java`
+  - `src/main/resources/db/data/{GNR_KEY_VAL,PARTS_IN_PAGE,PARTS_ITEM}.txt`
+  - `src/main/resources/db/flyway/V4__add_sign_up_complete_notice.sql`
+  - `src/test/java/com/freedom/taskall_v2/web/service/{NoticeServiceTest,CreateHtmlServiceTest,VerifySignUpServiceTest}.java`
+- 実装要点:
+  - 移植元remainzの`PARTS_ITEM`にある「`GNR_KEY_VAL`から定型メッセージをSELECTして通知」パターンを
+    参考にし、`ERR_MSG`/`ErrMsgService`と全く同じ「write-then-redirect-with-key」方式
+    (PRGパターン)を`NTC`テーブル向けに`NoticeService`として新規実装した。
+  - `HTML_PARTS_ID=1000701`(「通知表示領域」)は、remainz時代のDB管理画面向けに既に存在しており、
+    表示用テンプレート(`20080_commonNoticeList.html`)・全5ロール分の`HTML_PARTS_IN_APROLE`読み取り
+    権限も既に整っていたため、新規追加はTOP画面への`PARTS_IN_PAGE`配線と`PARTS_ITEM`クエリのみで済んだ。
+  - `20080_commonNoticeList.html`は`notice.GNR_VAL`列を参照する実装のため、テンプレート改修を避け
+    `SELECT NOTICE_MSG AS GNR_VAL FROM NTC WHERE NTC_ID = #{noticeKey}`と列名エイリアスで整合させた。
+  - `CreateHtmlService`に既存の`errMsgKey`デフォルト("0")と同様、`noticeKey`未指定時のデフォルト
+    ("0")補完ブロックを追加(このデフォルトが無いとサインアップ完了以外のTOP画面表示で
+    プレースホルダー解決に失敗する)。
+  - `VerifySignUpService`の6桁コード一致(アカウント作成成功)パスのみ`buildTopRedirectWithCompleteNotice`
+    を呼び出すよう変更し、他の無言リダイレクト(pendingSignUpId不在・セッション不一致・
+    期限切れ削除等)は通知を出さない従来の`buildTopRedirect(boolean)`のまま維持した。
+  - `GNR_KEY_VAL 1000106`(`signUpCompleteNotice`)を「汎用通知」グループ(`GNR_GRP_ID=1000101`)へ
+    追加。文言は依頼原文の句点抜けを補い、2文の間に`<br />`を挿入(同グループの既存メッセージの
+    スタイルに合わせた任意の整形)。
+  - 本番反映用に`db/flyway/V4__add_sign_up_complete_notice.sql`を追加(NTCテーブル自体は
+    Flyway導入以前から存在するためDDLは不要、マスタデータ3行のINSERTのみ)。
+  - 既存の件数固定テスト2件を追加データに合わせて更新: `DbInitializationServiceTest`
+    (828→831 INSERT)、`FlywayMigrationServiceTest`(新規ブートストラップ時のベースライン
+    バージョンを`3`→`4`)。
+  - `db/data`変更後は`DbSchemaSqlGeneratorRealDataTest`で`db/sql`を再生成し、
+    `rm -f taskallv2.db && ./gradlew test`で全273テスト成功を確認した。`bootRun`起動後、
+    `NTC`テーブルへ手動でメッセージ行を挿入し`?noticeKey=<id>`付きでTOP画面をGETして、
+    通知表示領域にメッセージが正しくレンダリングされることを目視確認した。
+
+#### 本番反映(develop→mainマージ)タイミングに関する方針(2026-08-18時点)
+
+- サインアップ機能には現状、既存画面(マイページ・共通ヘッダ等)からの導線(リンク)を一切
+  追加していない。URLを直接指定(GitHubリポジトリの中身からURI_PATTERNを探り当てる等)すれば
+  動作してしまうが、サインイン後も閲覧できる画面・変更できるDBデータが存在しないため、
+  現時点でのURL直接指定による実害は無いと判断している。
+- 唯一の実質的リスクは、サインアップの6桁コード確認メールを何度でも送信させ続けられる
+  (メール送信の連続実行に対する防御が未実装)という懸念であり、これは次のissueとして
+  別途対応する予定。
+- 上記のissue対応が完了する(ロボット等による機械的なサインアップをブロックできる)までは、
+  develop→mainマージによる本番反映を**保留**する。issue対応完了後は、本番反映して問題ない
+  (URL直接指定のリスクは十分に低い)と判断する。
+- 「隠しURL＋機能未実装(実害なし)」の組み合わせ自体は許容範囲であり、この待機期間中に
+  安全のためのURL入口封鎖(REQUIRE_APROLE無効化等の一時的な対応)は行わない方針とした。
+  次issue対応後にまた元に戻す二度手間を避けるため。
+- したがって、feature/78→developのマージ(PR #79)はこのタイミングで実施してよいが、
+  develop→mainのマージは、メール連続送信対策issueの完了後まで見送ること。

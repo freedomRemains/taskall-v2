@@ -1,0 +1,19 @@
+<!--/* メール送信済みの6桁コードを入力させるサインアップ確認画面。サインアップIDがセッションにある間だけ表示する。 */-->
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="body" th:if="${pendingSignUpId != null}" class="1001601 row justify-content-center my-5">
+    <div class="col-12 col-md-5 col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h5 card-title text-center mb-4">確認コード入力</h1>
+                <p class="text-center mb-4">ご入力のメールアドレス宛にお送りした6桁の番号を入力してください。</p>
+                <div class="mb-4">
+                    <label for="SIGN_UP_CODE" class="form-label">確認コード</label>
+                    <input id="SIGN_UP_CODE" name="SIGN_UP_CODE" class="form-control"
+                           inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+                </div>
+                <div class="d-grid">
+                    <button type="button" class="btn btn-primary" onclick="submitMainForm()">送信する</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
