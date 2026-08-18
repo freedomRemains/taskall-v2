@@ -257,3 +257,29 @@ AIに確認や対応をお願いし、時間やクレジットを使ってしま
 
     - 新規画面を追加する際は、`HTML_PAGE` / `HTML_PARTS` / `PARTS_IN_PAGE`だけでなく、`PARTS_ITEM`に`systemName`・必要な画面部品用`ITEM_KEY`が揃っているかを必ず確認する。
     - `db/data`を変更したら、`DbSchemaSqlGeneratorRealDataTest`の後に`DbInitializationServiceTest`と`rm -f taskallv2.db && ./gradlew test`を実行し、SQL実行件数のズレをその場で検出する。
+
+### issue #80: EC2側スクリプト変更を伴うマージ後、terraform apply未実施のまま本番反映しクラッシュループが発生した
+
+1. 概要
+
+    - issue #80(reCAPTCHA対応)のdevelop→mainマージ後、本番のreCAPTCHAチェックボックスが表示されなかった。
+    - ユーザーが調査のため`sudo systemctl restart taskall-v2`を手動実行したところ、EC2の`taskall-v2.service`が`update-ec2-scripts.sh`の`Permission denied`でクラッシュループ(再起動カウンタ70超)に陥った。
+    - `terraform apply`を実施し、EC2側スクリプト(`render-secrets-env.sh`)一式をS3経由で更新して復旧した。
+
+2. 原因
+
+    - 今回のPRは`infra/ec2/init/files/render-secrets-env.sh`(EC2側スクリプト)を変更したが、このファイル本体はTerraform(`infra/terraform/modules/ec2/main.tf`の`aws_s3_object.ec2_scripts`)経由でS3へアップロードされ、EC2側は`update-ec2-scripts.sh`が起動のたびにS3から取得する仕組みになっている。develop→mainマージ時のCI/CD(`cicd.yml`)はアプリ本体jarのみをS3へアップロードし、EC2側スクリプトの更新は対象外(スコープ外)のため、`terraform apply`を別途実行しない限りS3上のスクリプトは更新されない。
+    - `terraform apply`未実施のままユーザーが手動で`systemctl restart`したタイミングが、ちょうど5分間隔の`taskall-v2-release.timer`(release.sh経由の`update-ec2-scripts.sh`実行)と重なった。`update-ec2-scripts.sh`は`aws s3 cp`で自分自身を非アトミックに上書きするため、複数プロセスの同時実行により書き込み途中のファイルを別プロセスが実行しようとし、ファイルの実行権限が壊れる状態に陥った。
+
+3. 対応
+
+    - `taskall-v2-release.timer`を停止し、これ以上の競合を止めた。
+    - 壊れた`update-ec2-scripts.sh`等をS3から手動で`aws s3 cp`により再取得・`chmod 750`し直し、`taskall-v2.service`を1回だけ再起動して復旧を確認した。
+    - `terraform apply`を実施(誤った資材で一度実行していたため、正しい資材で再実行)し、S3上の`render-secrets-env.sh`が更新されたことを確認後、`taskall-v2.service`を再起動してreCAPTCHAキーが`secrets.env`に反映されることを確認した。
+    - `taskall-v2-release.timer`を再開した。
+
+4. 防御策
+
+    - **`infra/ec2/**`配下のファイルを変更するPRをdevelop→mainマージする際は、マージ後に必ず`documents/procedure/3000021_terraform.md`の手順で`terraform plan`→`apply`を実行し、`aws_s3_object.ec2_scripts`に差分がないか確認する。** マージ直後にPRの説明欄へ「terraform applyが必要」である旨を明記する。
+    - **`terraform apply`実行前後は、EC2側で`systemctl restart taskall-v2`等の手動操作を行わない。** `taskall-v2-release.timer`と競合するため、手動操作が必要な場合は先に`sudo systemctl stop taskall-v2-release.timer`でタイマーを止めてから行う。
+    - `terraform apply`実行後は、`aws s3 cp s3://<artifact_bucket>/ec2-scripts/<変更したファイル名> - --region <region> | head`でS3側の内容が確実に更新されているか確認してから、EC2側の`systemctl restart taskall-v2`を実施する。
