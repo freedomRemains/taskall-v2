@@ -662,7 +662,7 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
 ### issue #78: サインアップ機能の実装
 
 - issue #78: https://github.com/freedomRemains/taskall-v2/issues/78
-- PR #79（`feature/78`→`develop`）: https://github.com/freedomRemains/taskall-v2/pull/PLACEHOLDER
+- PR #79（`feature/78`→`develop`）: https://github.com/freedomRemains/taskall-v2/pull/79
 - 関連パス:
   - `src/main/java/com/freedom/taskall_v2/web/service/SignUpService.java`
   - `src/main/java/com/freedom/taskall_v2/web/service/StartSignUpService.java`
