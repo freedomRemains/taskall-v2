@@ -16,6 +16,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.freedom.taskall_v2.common.db.RecordQueryService;
+import com.freedom.taskall_v2.common.config.RecaptchaProperties;
 import com.freedom.taskall_v2.common.exception.ApplicationInternalException;
 import com.freedom.taskall_v2.common.util.MsgUtil;
 
@@ -51,7 +52,10 @@ class CreateHtmlServiceTest {
 
     @BeforeEach
     void setUp() {
-        createHtmlService = new CreateHtmlService(recordQueryService, JsonMapper.builder().build(), new MsgUtil());
+        RecaptchaProperties recaptchaProperties = new RecaptchaProperties();
+        recaptchaProperties.setSiteKey("test-site-key");
+        createHtmlService = new CreateHtmlService(recordQueryService, JsonMapper.builder().build(), new MsgUtil(),
+                recaptchaProperties);
     }
 
     private LinkedHashMap<String, String> pageRow(String partsInPageId, String htmlPartsId, String partsName,
@@ -199,6 +203,24 @@ class CreateHtmlServiceTest {
     }
 
     @Test
+    void noticeKeyが未指定の場合は0がデフォルト設定されプレースホルダーが解決されること() {
+
+        LinkedHashMap<String, String> row = pageRow("1000003", "1000701", "通知表示領域",
+                "noticeList", "SELECT NOTICE_MSG AS GNR_VAL FROM NTC WHERE NTC_ID = #{noticeKey}");
+
+        when(recordQueryService.select(eq(PAGE_SQL), eq(List.of("/taskall-v2/service/top.html"))))
+                .thenReturn(new ArrayList<>(List.of(row)));
+        when(recordQueryService.select(eq("SELECT NOTICE_MSG AS GNR_VAL FROM NTC WHERE NTC_ID = 0")))
+                .thenReturn(new ArrayList<>());
+
+        String result = createHtmlService.execute(
+                "{\"requestKind\":\"GET\",\"requestUri\":\"/taskall-v2/service/top.html\"}");
+
+        JsonNode node = JsonMapper.builder().build().readTree(result);
+        assertThat(node.path("htmlPage").get(0).path("items").get(0).path("records")).isEmpty();
+    }
+
+    @Test
     void respKindとdestinationがコンテキストに既に存在する場合は上書きしないこと() {
 
         LinkedHashMap<String, String> row =
@@ -222,5 +244,27 @@ class CreateHtmlServiceTest {
         JsonNode node = JsonMapper.builder().build().readTree(result);
         assertThat(node.path("respKind").asString()).isEqualTo("redirect");
         assertThat(node.path("destination").asString()).isEqualTo("myPage.html?errMsgKey=5");
+    }
+
+    @Test
+    void recaptchaSiteKeyがトップレベル属性として出力されること() throws Exception {
+
+        LinkedHashMap<String, String> row =
+                pageRow("1000201", "1000001", "システム名", "systemName",
+                        "SELECT GNR_VAL FROM GNR_KEY_VAL WHERE GNR_KEY = 'systemName'");
+
+        when(recordQueryService.select(eq(PAGE_SQL), eq(List.of("/taskall-v2/service/top.html"))))
+                .thenReturn(new ArrayList<>(List.of(row)));
+
+        LinkedHashMap<String, String> systemNameRecord = new LinkedHashMap<>();
+        systemNameRecord.put("GNR_VAL", "Taskall");
+        when(recordQueryService.select(eq("SELECT GNR_VAL FROM GNR_KEY_VAL WHERE GNR_KEY = 'systemName'")))
+                .thenReturn(new ArrayList<>(List.of(systemNameRecord)));
+
+        String result = createHtmlService.execute(
+                "{\"requestKind\":\"GET\",\"requestUri\":\"/taskall-v2/service/top.html\"}");
+
+        JsonNode node = JsonMapper.builder().build().readTree(result);
+        assertThat(node.path("recaptchaSiteKey").asString()).isEqualTo("test-site-key");
     }
 }

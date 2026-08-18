@@ -7,6 +7,7 @@ import java.util.Map;
 import org.springframework.stereotype.Service;
 
 import com.freedom.taskall_v2.common.db.RecordQueryService;
+import com.freedom.taskall_v2.common.config.RecaptchaProperties;
 import com.freedom.taskall_v2.common.exception.ApplicationInternalException;
 import com.freedom.taskall_v2.common.service.script.ScriptElementService;
 import com.freedom.taskall_v2.common.util.MsgUtil;
@@ -49,11 +50,14 @@ public class CreateHtmlService implements ScriptElementService {
     private final RecordQueryService recordQueryService;
     private final ObjectMapper objectMapper;
     private final MsgUtil msg;
+    private final RecaptchaProperties recaptchaProperties;
 
-    public CreateHtmlService(RecordQueryService recordQueryService, ObjectMapper objectMapper, MsgUtil msg) {
+    public CreateHtmlService(RecordQueryService recordQueryService, ObjectMapper objectMapper, MsgUtil msg,
+            RecaptchaProperties recaptchaProperties) {
         this.recordQueryService = recordQueryService;
         this.objectMapper = objectMapper;
         this.msg = msg;
+        this.recaptchaProperties = recaptchaProperties;
     }
 
     @Override
@@ -73,6 +77,14 @@ public class CreateHtmlService implements ScriptElementService {
             context.put("errMsgKey", "0");
         }
 
+        // noticeKeyも同様にPARTS_ITEM.ITEM_QUERY(noticeList)のプレースホルダとして参照されるが、
+        // サインアップ完了などのPRGパターンを経由しない通常の画面表示では入力JSONに含まれない。
+        // 未設定のままだとVariablePlaceholderResolverの解決に失敗するため、
+        // 「通知無し」を意味するデフォルト値"0"を補っておく。
+        if (context.path("noticeKey").asString("").isBlank()) {
+            context.put("noticeKey", "0");
+        }
+
         List<LinkedHashMap<String, String>> pageRows = recordQueryService.select(PAGE_SQL, List.of(requestUri));
         if (pageRows.isEmpty()) {
             throw new ApplicationInternalException(msg.get("msg.err.web.pageNotFound", requestUri));
@@ -81,6 +93,7 @@ public class CreateHtmlService implements ScriptElementService {
         // 画面パーツ群をhtmlPageへ構築し、後続のビュー解決に必要な応答情報も出力へまとめる
         ObjectNode output = objectMapper.createObjectNode();
         output.set("htmlPage", buildHtmlPage(pageRows, context));
+        output.put("recaptchaSiteKey", recaptchaProperties.getSiteKey());
 
         // respKind/destinationは通常HTML_PAGEの定義値から決定するが、LoginServiceのように
         // 同一SCR内で先行実行されるサービスがPRGパターン(認証失敗時のリダイレクト等)により

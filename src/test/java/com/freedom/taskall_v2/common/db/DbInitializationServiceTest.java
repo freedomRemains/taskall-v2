@@ -38,9 +38,12 @@ class DbInitializationServiceTest {
 
         dbInitializationService.initializeDatabase();
 
-        // 25テーブル分のDROP・CREATE（各1ステートメント）と、INSERT分（合計770ステートメント）が実行される
+        // 26テーブル分のDROP・CREATE（各1ステートメント）と、INSERT分（合計831ステートメント）が実行される
         // (issue #69でPASSWORD_RESETテーブルが追加されたため、24から25へ変更)
-        // (同issueでパスワード再設定画面・メッセージ・画面部品関連のDBデータが増え、INSERT総数が713から770へ増加)
-        verify(jdbcTemplate, times(25 + 25 + 770)).execute(anyString());
+        // (issue #78でSIGN_UPテーブルが追加されたため、25から26へ変更)
+        // (同issueでサインアップ画面・メッセージ・画面部品関連のDBデータが増え、INSERT総数が770から828へ増加)
+        // (同issueのフォローアップでサインアップ完了通知用のDBデータが増え、828から831へ増加)
+        // issue #80でreCAPTCHA関連のDBデータ3件が増え、831から834へ増加。
+        verify(jdbcTemplate, times(26 + 26 + 834)).execute(anyString());
     }
 }

@@ -25,3 +25,10 @@ taskall:
   # (未設定の場合の既定値もno-reply@taskall-v2.comだが、意図を明確にするため明示的に記載する)。
   mail:
     from-address: ${TASKALL_MAIL_FROM_ADDRESS:no-reply@taskall-v2.com}
+
+  # reCAPTCHA(不正なメール送信要求の連続実行防止、issue #80)関連の設定。
+  # 本番環境ではrender-secrets-env.shがSSM Parameter Storeから取得しTASKALL_RECAPTCHA_SITE_KEY/
+  # TASKALL_RECAPTCHA_SECRET_KEY環境変数として設定する
+  recaptcha:
+    site-key: ${TASKALL_RECAPTCHA_SITE_KEY:}
+    secret-key: ${TASKALL_RECAPTCHA_SECRET_KEY:}

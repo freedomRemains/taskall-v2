@@ -1,0 +1,48 @@
+<!--/* サインアップの受付画面。メールアドレス・アカウント名・希望パスワード・登録区分を中央寄せのcardで入力させる。 */-->
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="body" class="1001501 row justify-content-center my-5">
+    <div class="col-12 col-md-6 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h5 card-title text-center mb-4">サインアップ</h1>
+                <p class="text-center mb-4">アカウント情報を入力してください。ご入力のメールアドレス宛に確認用の6桁の番号をお送りします。</p>
+                <div class="mb-3">
+                    <label class="form-label d-block">登録区分</label>
+                    <div class="form-check form-check-inline">
+                        <input id="ACCOUNT_KIND_PERSONAL" class="form-check-input" type="radio" name="ACCOUNT_KIND"
+                               value="1" checked>
+                        <label for="ACCOUNT_KIND_PERSONAL" class="form-check-label">個人で登録</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input id="ACCOUNT_KIND_CORPORATE" class="form-check-input" type="radio" name="ACCOUNT_KIND"
+                               value="2">
+                        <label for="ACCOUNT_KIND_CORPORATE" class="form-check-label">法人で登録</label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="ACCOUNT_NAME" class="form-label">アカウント名</label>
+                    <input id="ACCOUNT_NAME" name="ACCOUNT_NAME" class="form-control" autocomplete="name">
+                </div>
+                <div class="mb-3">
+                    <label for="MAIL_ADDRESS" class="form-label">メールアドレス</label>
+                    <input id="MAIL_ADDRESS" name="MAIL_ADDRESS" class="form-control" autocomplete="email">
+                </div>
+                <div class="mb-3">
+                    <label for="PASSWORD" class="form-label">パスワード</label>
+                    <input id="PASSWORD" type="password" name="PASSWORD" class="form-control"
+                           autocomplete="new-password">
+                </div>
+                <div class="mb-4">
+                    <label for="PASSWORD_CONFIRM" class="form-label">パスワード（確認用）</label>
+                    <input id="PASSWORD_CONFIRM" type="password" name="PASSWORD_CONFIRM" class="form-control"
+                           autocomplete="new-password">
+                </div>
+                <div class="mb-3 d-flex justify-content-center">
+                    <div class="g-recaptcha" th:attr="data-sitekey=${recaptchaSiteKey}"></div>
+                </div>
+                <div class="d-grid">
+                    <button type="button" class="btn btn-primary" onclick="submitMainForm()">送信する</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

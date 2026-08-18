@@ -102,6 +102,26 @@ public class TaskallV2Controller {
         return handleRequest(request, "POST", model);
     }
 
+    @GetMapping("/taskall-v2/service/signUp.html")
+    public String getSignUp(HttpServletRequest request, Model model) {
+        return handleRequest(request, "GET", model);
+    }
+
+    @PostMapping("/taskall-v2/service/signUp.html")
+    public String postSignUp(HttpServletRequest request, Model model) {
+        return handleRequest(request, "POST", model);
+    }
+
+    @GetMapping("/taskall-v2/service/signUpPasscode.html")
+    public String getSignUpPasscode(HttpServletRequest request, Model model) {
+        return handleRequest(request, "GET", model);
+    }
+
+    @PostMapping("/taskall-v2/service/signUpPasscode.html")
+    public String postSignUpPasscode(HttpServletRequest request, Model model) {
+        return handleRequest(request, "POST", model);
+    }
+
     // 以下、DBメンテナンス機能の画面群。いずれもDBレコード駆動の汎用処理(handleRequest)へ
     // 委譲するのみで、画面固有の業務ロジックはコントローラ側に持たない
     @GetMapping("/taskall-v2/service/dbMainte.html")
@@ -201,12 +221,15 @@ public class TaskallV2Controller {
         // 実行結果からセッションとModelを更新し、最後にレスポンス種別に応じたビュー名へ変換する
         storeAccountIdIfExists(session, result);
         storePendingPasswordResetIdIfExists(session, result);
+        storePendingSignUpIdIfExists(session, result);
         clearPendingTwoFactorAccountIdIfCompleted(session, result);
         clearPendingPasswordResetIdIfCompleted(session, result);
+        clearPendingSignUpIdIfCompleted(session, result);
         populateModel(result, model);
 
         model.addAttribute("pendingTwoFactorAccountId", session.getAttribute("pendingTwoFactorAccountId"));
         model.addAttribute("pendingPasswordResetId", session.getAttribute("pendingPasswordResetId"));
+        model.addAttribute("pendingSignUpId", session.getAttribute("pendingSignUpId"));
 
         return resolveViewName(result);
     }
@@ -283,6 +306,12 @@ public class TaskallV2Controller {
             context.put("pendingPasswordResetId", pendingPasswordResetId.toString());
         }
 
+        // サインアップ(メールアドレス入力後・6桁コード待ち)中のサインアップIDも同様に引き継ぐ
+        Object pendingSignUpId = request.getSession().getAttribute("pendingSignUpId");
+        if (pendingSignUpId != null) {
+            context.put("pendingSignUpId", pendingSignUpId.toString());
+        }
+
         context.put("requestKind", requestKind);
         context.put("requestUri", request.getRequestURI());
         context.put("sessionId", request.getSession().getId());
@@ -308,6 +337,14 @@ public class TaskallV2Controller {
         }
     }
 
+    private void storePendingSignUpIdIfExists(HttpSession session, JsonNode result) {
+
+        String pendingSignUpId = result.path("pendingSignUpId").asText("");
+        if (!pendingSignUpId.isBlank()) {
+            session.setAttribute("pendingSignUpId", pendingSignUpId);
+        }
+    }
+
     private void clearPendingTwoFactorAccountIdIfCompleted(HttpSession session, JsonNode result) {
         if (result.path("twoFactorAuthCompleted").asBoolean(false)) {
             session.removeAttribute("pendingTwoFactorAccountId");
@@ -317,6 +354,12 @@ public class TaskallV2Controller {
     private void clearPendingPasswordResetIdIfCompleted(HttpSession session, JsonNode result) {
         if (result.path("passwordResetCompleted").asBoolean(false)) {
             session.removeAttribute("pendingPasswordResetId");
+        }
+    }
+
+    private void clearPendingSignUpIdIfCompleted(HttpSession session, JsonNode result) {
+        if (result.path("signUpCompleted").asBoolean(false)) {
+            session.removeAttribute("pendingSignUpId");
         }
     }
 

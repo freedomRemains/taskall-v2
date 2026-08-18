@@ -64,7 +64,8 @@ class SecurityConfigTest {
         mockMvc.perform(post("/taskall-v2/service/myPage.html")
                         .with(csrf())
                         .param("MAIL_ADDRESS", "guest@account.com")
-                        .param("PASSWORD", "password"))
+                        .param("PASSWORD", "password")
+                        .param("g-recaptcha-response", "test"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/taskall-v2/service/twoFactorAuth.html"));
     }
@@ -77,7 +78,8 @@ class SecurityConfigTest {
         mockMvc.perform(post("/taskall-v2/service/myPage.html")
                         .with(csrf())
                         .param("MAIL_ADDRESS", "guest@account.com")
-                        .param("PASSWORD", "password"))
+                        .param("PASSWORD", "password")
+                        .param("g-recaptcha-response", "test"))
                 .andExpect(status().is3xxRedirection());
 
         verify(twoFactorMailService, times(1)).sendPasscode(anyString(), anyString());
@@ -89,7 +91,8 @@ class SecurityConfigTest {
         mockMvc.perform(post("/taskall-v2/service/myPage.html")
                         .with(csrf())
                         .param("MAIL_ADDRESS", "guest@account.com")
-                        .param("PASSWORD", "wrongPassword"))
+                        .param("PASSWORD", "wrongPassword")
+                        .param("g-recaptcha-response", "test"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(result -> {
                     String redirectedUrl = result.getResponse().getRedirectedUrl();
@@ -113,7 +116,8 @@ class SecurityConfigTest {
         // CSRFトークン無しのPOSTでも403にならず通常通り処理されることを確認する
         mockMvc.perform(post("/taskall-v2/service/myPage.html")
                         .param("MAIL_ADDRESS", "guest@account.com")
-                        .param("PASSWORD", "password"))
+                        .param("PASSWORD", "password")
+                        .param("g-recaptcha-response", "test"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/taskall-v2/service/twoFactorAuth.html"));
     }
