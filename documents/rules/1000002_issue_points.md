@@ -770,3 +770,57 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
   次issue対応後にまた元に戻す二度手間を避けるため。
 - したがって、feature/78→developのマージ(PR #79)はこのタイミングで実施してよいが、
   develop→mainのマージは、メール連続送信対策issueの完了後まで見送ること。
+
+### issue #80: reCAPTCHA v2によるメール送信入口の保護
+
+- issue #80: https://github.com/freedomRemains/taskall-v2/issues/80
+- PR #（作成予定、`feature/80`→`develop`）
+- 関連パス:
+  - `src/main/java/com/freedom/taskall_v2/common/config/RecaptchaProperties.java`
+  - `src/main/java/com/freedom/taskall_v2/web/service/{RecaptchaVerificationService,RecaptchaVerificationScriptElementService,CreateHtmlService}.java`
+  - `src/main/java/com/freedom/taskall_v2/web/security/{TwoPhaseAuthenticationProvider,AccountAuthenticationFailureHandler,RecaptchaVerificationFailedException}.java`
+  - `src/main/resources/{custom-local.yaml,custom-prod.yaml,msg/messages.properties}`
+  - `src/main/resources/templates/{10000_contents.html,parts/common/20030_commonLogin.html,parts/common/20140_commonPasswordResetInputMail.html,parts/common/20160_commonSignUpInput.html}`
+  - `src/main/resources/db/data/{GNR_KEY_VAL,SCR_ELM}.txt`
+  - `src/main/resources/db/flyway/V5__add_recaptcha_verification.sql`
+  - `infra/ec2/init/files/render-secrets-env.sh`
+  - `documents/procedure/3000041_ec2_deploy_scripts.md`
+  - `src/test/java/com/freedom/taskall_v2/web/service/{RecaptchaVerificationServiceTest,RecaptchaVerificationScriptElementServiceTest,CreateHtmlServiceTest}.java`
+  - `src/test/java/com/freedom/taskall_v2/web/security/{TwoPhaseAuthenticationProviderTest,AccountAuthenticationFailureHandlerTest,SecurityConfigTest}.java`
+  - `src/test/java/com/freedom/taskall_v2/common/db/{DbInitializationServiceTest,FlywayMigrationServiceTest,DbSchemaSqlGeneratorRealDataTest}.java`
+- 実装要点:
+  - Google reCAPTCHA v2チェックボックスを採用し、ローカルではGoogle公式テストキーを
+    `custom-local.yaml`へ固定設定、本番では`TASKALL_RECAPTCHA_SITE_KEY`/
+    `TASKALL_RECAPTCHA_SECRET_KEY`環境変数から受ける`taskall.recaptcha.*`設定を新設した。
+  - 検証本体は`RecaptchaVerificationService`へ分離し、Spring 6標準の`RestClient`で
+    `https://www.google.com/recaptcha/api/siteverify`へPOSTする。`response`空欄は即`false`、
+    API障害はWARNログの上で`false`、`secretKey`未設定時のみローカル/CI保護のため
+    WARNログ付きフェイルオープン(`true`)とした。
+  - サインアップ/パスワード再設定は既存サービス本体を直接改変せず、SCR_ELM先頭に
+    `RecaptchaVerificationScriptElementService`を追加して防御する構成を採用した。
+    `TaskallV2Controller#buildContext`はリクエストパラメータ名をそのままJSONキーへ転写するため、
+    `g-recaptcha-response`のようなハイフン入りキーもそのまま扱える。
+  - サインインだけはSpring Securityの別経路なので、`TwoPhaseAuthenticationProvider`冒頭で
+    `RequestContextHolder`から`g-recaptcha-response`を取得し、失敗時は
+    `RecaptchaVerificationFailedException`を投げて`AccountAuthenticationFailureHandler`で
+    専用メッセージ(`GNR_KEY_VAL 1000410`)付きリダイレクトへ分岐させた。
+  - 画面側は3画面(サインイン/パスワード再設定/サインアップ)の送信ボタン直前へ
+    `g-recaptcha`要素を追加し、Google公式`api.js`は`10000_contents.html`で一括読込に統一した。
+    `CreateHtmlService`が`recaptchaSiteKey`を常時トップレベル属性へ追加するため、
+    既存の画面生成経路を崩さず全対象画面へ配布できる。
+  - 本番インフラは既存のmail認証情報注入パターンを踏襲し、
+    `render-secrets-env.sh`が`/${PROJECT_NAME}/recaptcha/{site-key,secret-key}`を取得して
+    `TASKALL_RECAPTCHA_*`として書き出すよう拡張した。IAMは`/${var.project_name}/*`で既存許可済み。
+  - Flywayは`V5__add_recaptcha_verification.sql`を追加し、新規行のみ
+    (`GNR_KEY_VAL 1000410`, `SCR_ELM` 2件)をINSERTする。`DbInitializationServiceTest`の
+    INSERT総数は再生成後`831→834`へ、`FlywayMigrationServiceTest`のベースライン期待値は`4→5`へ更新した。
+- 検証結果:
+  - `./gradlew test --tests "...RecaptchaVerificationServiceTest" --tests "...RecaptchaVerificationScriptElementServiceTest" --tests "...TwoPhaseAuthenticationProviderTest" --tests "...AccountAuthenticationFailureHandlerTest" --tests "...CreateHtmlServiceTest" --tests "...DbInitializationServiceTest" --tests "...FlywayMigrationServiceTest"` 成功。
+  - `./gradlew test --tests "com.freedom.taskall_v2.common.db.DbSchemaSqlGeneratorRealDataTest"` で`db/sql`再生成成功。
+  - `rm -f taskallv2.db && ./gradlew test` 成功(全284テスト)。
+  - `./gradlew bootRun`起動後、PythonのHTTP取得で
+    `/taskall-v2/service/myPage.html` `/taskall-v2/service/inputMail.html`
+    `/taskall-v2/service/signUp.html` の各HTMLに`g-recaptcha`要素・`data-sitekey`・
+    `https://www.google.com/recaptcha/api.js`が含まれることを確認した。
+  - 同起動中にGoogle公式テストキーで`siteverify`へPOSTし、
+    `{\"success\": true, \"hostname\": \"testkey.google.com\"}`応答を確認した。

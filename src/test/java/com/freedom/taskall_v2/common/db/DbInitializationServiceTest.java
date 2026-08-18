@@ -43,6 +43,7 @@ class DbInitializationServiceTest {
         // (issue #78でSIGN_UPテーブルが追加されたため、25から26へ変更)
         // (同issueでサインアップ画面・メッセージ・画面部品関連のDBデータが増え、INSERT総数が770から828へ増加)
         // (同issueのフォローアップでサインアップ完了通知用のDBデータが増え、828から831へ増加)
-        verify(jdbcTemplate, times(26 + 26 + 831)).execute(anyString());
+        // issue #80でreCAPTCHA関連のDBデータ3件が増え、831から834へ増加。
+        verify(jdbcTemplate, times(26 + 26 + 834)).execute(anyString());
     }
 }

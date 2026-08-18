@@ -28,6 +28,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import com.freedom.taskall_v2.common.util.MsgUtil;
 import com.freedom.taskall_v2.web.service.AccntAuthLockService;
 import com.freedom.taskall_v2.web.service.LoginStatusService;
+import com.freedom.taskall_v2.web.service.RecaptchaVerificationService;
 import com.freedom.taskall_v2.web.service.TwoFactorMailService;
 import com.freedom.taskall_v2.web.util.PasscodeGenerator;
 
@@ -53,6 +54,9 @@ class TwoPhaseAuthenticationProviderTest {
     private TwoFactorMailService twoFactorMailService;
 
     @Mock
+    private RecaptchaVerificationService recaptchaVerificationService;
+
+    @Mock
     private MsgUtil msg;
 
     private MockHttpServletRequest request;
@@ -68,7 +72,7 @@ class TwoPhaseAuthenticationProviderTest {
 
         twoPhaseAuthenticationProvider = new TwoPhaseAuthenticationProvider(accountUserDetailsService,
                 passwordEncoder, accntAuthLockService, loginStatusService, passcodeGenerator, twoFactorMailService,
-                msg);
+                recaptchaVerificationService, msg);
     }
 
     @AfterEach
@@ -80,6 +84,8 @@ class TwoPhaseAuthenticationProviderTest {
     @Test
     void メールアドレスに対応するアカウントが存在しない場合は他のテーブル操作なしでBadCredentialsExceptionとなること() {
 
+        request.addParameter("g-recaptcha-response", "token");
+        when(recaptchaVerificationService.verify("token")).thenReturn(true);
         when(accountUserDetailsService.loadUserByUsername("nobody@example.com"))
                 .thenThrow(new UsernameNotFoundException("nobody@example.com"));
         Authentication authentication = new UsernamePasswordAuthenticationToken("nobody@example.com", "password");
@@ -94,6 +100,8 @@ class TwoPhaseAuthenticationProviderTest {
     @Test
     void ロック中のアカウントはLockedExceptionとなること() {
 
+        request.addParameter("g-recaptcha-response", "token");
+        when(recaptchaVerificationService.verify("token")).thenReturn(true);
         AccountPrincipal principal = new AccountPrincipal("1000001", "user@example.com", "hashed-password");
         when(accountUserDetailsService.loadUserByUsername("user@example.com")).thenReturn(principal);
         when(accntAuthLockService.isLocked("1000001")).thenReturn(true);
@@ -106,6 +114,8 @@ class TwoPhaseAuthenticationProviderTest {
     @Test
     void パスワードが一致する場合はパスコードメールを送信しTwoFactorRequiredExceptionとなること() {
 
+        request.addParameter("g-recaptcha-response", "token");
+        when(recaptchaVerificationService.verify("token")).thenReturn(true);
         AccountPrincipal principal = new AccountPrincipal("1000001", "user@example.com", "hashed-password");
         when(accountUserDetailsService.loadUserByUsername("user@example.com")).thenReturn(principal);
         when(accntAuthLockService.isLocked("1000001")).thenReturn(false);
@@ -132,6 +142,8 @@ class TwoPhaseAuthenticationProviderTest {
     @Test
     void パスワードが一致しない場合は失敗が記録されBadCredentialsExceptionとなること() {
 
+        request.addParameter("g-recaptcha-response", "token");
+        when(recaptchaVerificationService.verify("token")).thenReturn(true);
         AccountPrincipal principal = new AccountPrincipal("1000001", "user@example.com", "hashed-password");
         when(accountUserDetailsService.loadUserByUsername("user@example.com")).thenReturn(principal);
         when(accntAuthLockService.isLocked("1000001")).thenReturn(false);
@@ -148,5 +160,19 @@ class TwoPhaseAuthenticationProviderTest {
 
         verify(loginStatusService).markFirstAuthFail("9");
         verify(accntAuthLockService).recordFailure("1000001");
+    }
+
+    @Test
+    void recaptcha検証失敗時はアカウント検索前にRecaptchaVerificationFailedExceptionとなること() {
+
+        request.addParameter("g-recaptcha-response", "token");
+        when(recaptchaVerificationService.verify("token")).thenReturn(false);
+
+        Authentication authentication = new UsernamePasswordAuthenticationToken("user@example.com", "password");
+
+        assertThatThrownBy(() -> twoPhaseAuthenticationProvider.authenticate(authentication))
+                .isInstanceOf(RecaptchaVerificationFailedException.class);
+
+        verify(accountUserDetailsService, org.mockito.Mockito.never()).loadUserByUsername(any());
     }
 }

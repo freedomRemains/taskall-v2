@@ -189,6 +189,8 @@ infra/ec2/
   - `/taskallv2/accnt/{guest,individual,corporate,master,grandmaster}/mailAddress`（任意、
     実際にメールを受信できるアドレスを設定したい場合のみ）
   - `/taskallv2/mail/{host,port,username,password}`（必須）
+  - `/taskallv2/recaptcha/{site-key,secret-key}`（必須、issue #80。Google reCAPTCHA v2の
+    サイトキー/シークレットキー。develop→mainマージ前に本番用実キーを設定する）
 
 ---
 
