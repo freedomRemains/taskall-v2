@@ -20,3 +20,9 @@ taskall:
   # ローカル環境ではMailHog等のダミーSMTPサーバへ送信するだけのため、実在性は問われない。
   mail:
     from-address: no-reply@taskall-v2.com
+
+  # reCAPTCHA(不正なメール送信要求の連続実行防止、issue #80)関連の設定。
+  # ローカル環境ではGoogle公式の「常に成功するテストキー」を使用する
+  recaptcha:
+    site-key: 6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI
+    secret-key: 6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe

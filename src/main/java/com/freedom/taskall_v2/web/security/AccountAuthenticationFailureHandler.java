@@ -33,6 +33,7 @@ public class AccountAuthenticationFailureHandler implements AuthenticationFailur
 
     /** アカウントロック中エラーメッセージに対応する汎用キー値マスタID */
     private static final String ACCOUNT_LOCK_ERROR_GNR_KEY_VAL_ID = "1000402";
+    private static final String RECAPTCHA_ERROR_GNR_KEY_VAL_ID = "1000410";
 
     /** 二段階認証画面のURI */
     private static final String TWO_FACTOR_AUTH_URI = "/taskall-v2/service/twoFactorAuth.html";
@@ -63,7 +64,9 @@ public class AccountAuthenticationFailureHandler implements AuthenticationFailur
 
         // ロック中は専用のエラーメッセージ、それ以外(パスワード不一致等)は従来通りのログインエラーとする
         String gnrKeyValId =
-                exception instanceof LockedException ? ACCOUNT_LOCK_ERROR_GNR_KEY_VAL_ID : LOGIN_ERROR_GNR_KEY_VAL_ID;
+                exception instanceof LockedException ? ACCOUNT_LOCK_ERROR_GNR_KEY_VAL_ID
+                        : exception instanceof RecaptchaVerificationFailedException ? RECAPTCHA_ERROR_GNR_KEY_VAL_ID
+                                : LOGIN_ERROR_GNR_KEY_VAL_ID;
         String errMsgKey = errMsgService.getErrMsgKey(sessionId, accountId, gnrKeyValId);
 
         response.sendRedirect("myPage.html?errMsgKey=" + errMsgKey);

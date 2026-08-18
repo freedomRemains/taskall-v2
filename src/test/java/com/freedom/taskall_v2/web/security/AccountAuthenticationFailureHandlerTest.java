@@ -94,4 +94,22 @@ class AccountAuthenticationFailureHandlerTest {
         verify(errMsgService, never()).getErrMsgKey(any(), any(), any());
         assertThat(response.getRedirectedUrl()).isEqualTo("/taskall-v2/service/twoFactorAuth.html");
     }
+
+    @Test
+    void recaptcha失敗時は専用エラーメッセージ付きでマイページへリダイレクトされること() throws Exception {
+
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.getSession(true);
+        String sessionId = request.getSession().getId();
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        AuthenticationException exception = new RecaptchaVerificationFailedException("recaptcha failed");
+
+        when(errMsgService.getErrMsgKey(eq(sessionId), eq("1000001"), eq("1000410"))).thenReturn("410");
+
+        AccountAuthenticationFailureHandler handler = new AccountAuthenticationFailureHandler(errMsgService);
+        handler.onAuthenticationFailure(request, response, exception);
+
+        verify(errMsgService).getErrMsgKey(sessionId, "1000001", "1000410");
+        assertThat(response.getRedirectedUrl()).isEqualTo("myPage.html?errMsgKey=410");
+    }
 }

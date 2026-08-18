@@ -118,6 +118,37 @@ AIに確認や対応をお願いし、時間やクレジットを使ってしま
       `user_data_replace_on_change = true`を設定しておらず、`terraform plan`実行時に
       `user_data`変更が「インスタンス再作成が必要な変更」として警告されない状態だった。
 
+### issue #80: db/data更新後にdb/sql再生成前提の件数固定テストがずれる問題
+
+1. 概要
+
+    - issue #80対応中、`DbInitializationServiceTest`のINSERT総数期待値を先に834へ更新したところ、
+      まだ`DbSchemaSqlGeneratorRealDataTest`で`src/main/resources/db/sql`を再生成していない段階では
+      実際のSQL件数が831のままで、単体テストが失敗した。
+    - その後`DbSchemaSqlGeneratorRealDataTest`を実行して`db/sql`再生成後は、同テスト期待値834が
+      正しい状態へ戻った。
+
+2. 原因
+
+    - 本プロジェクトでは`db/data`がSQL生成元、`db/sql`が生成物であり、`DbInitializationServiceTest`は
+      実際には生成物側(`db/sql/*.sql`)の件数を検証している。
+    - `db/data`だけ更新した直後に件数固定テストの期待値まで先行変更すると、生成物との一時的不整合で
+      失敗する。
+
+3. 対応
+
+    - `DbSchemaSqlGeneratorRealDataTest`を先に実行して`db/sql`を再生成し、その後に
+      `DbInitializationServiceTest`期待値を834へ確定させた。
+    - フルテスト(`rm -f taskallv2.db && ./gradlew test`)で再生成後の状態を最終確認した。
+
+4. 防御策
+
+    - `src/main/resources/db/data/`を変更したissueでは、件数固定テストを更新する前に
+      まず`./gradlew test --tests "com.freedom.taskall_v2.common.db.DbSchemaSqlGeneratorRealDataTest"`を
+      実行して`db/sql`を再生成する。
+    - `DbInitializationServiceTest`の件数を変更する前に、`src/main/resources/db/sql`内の
+      INSERT件数を確認してから値を確定する。
+
 3. 対応
 
     - `infra/ec2/init/init.sh.tftpl`の`dnf install`に`java-21-amazon-corretto-headless`を

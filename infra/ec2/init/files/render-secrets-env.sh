@@ -16,20 +16,26 @@ set -euo pipefail
 # shellcheck source=/dev/null
 source /etc/taskall-v2/config.env
 
-SSM_PREFIX="/${PROJECT_NAME}/mail"
+MAIL_SSM_PREFIX="/${PROJECT_NAME}/mail"
+RECAPTCHA_SSM_PREFIX="/${PROJECT_NAME}/recaptcha"
 SECRETS_FILE="/etc/taskall-v2/secrets.env"
 
 fetch_param() {
-    local name="$1"
+    local prefix="$1"
+    local name="$2"
     aws ssm get-parameter --region "${AWS_REGION}" --with-decryption \
-        --name "${SSM_PREFIX}/${name}" --query 'Parameter.Value' --output text
+        --name "${prefix}/${name}" --query 'Parameter.Value' --output text
 }
 
 # SSMパラメータが1つでも未設定の場合は、メール送信不能なままの起動を防ぐため即座に失敗させる
-mail_host="$(fetch_param host)"
-mail_port="$(fetch_param port)"
-mail_username="$(fetch_param username)"
-mail_password="$(fetch_param password)"
+mail_host="$(fetch_param "${MAIL_SSM_PREFIX}" host)"
+mail_port="$(fetch_param "${MAIL_SSM_PREFIX}" port)"
+mail_username="$(fetch_param "${MAIL_SSM_PREFIX}" username)"
+mail_password="$(fetch_param "${MAIL_SSM_PREFIX}" password)"
+
+# issue #80: reCAPTCHAキーも、メール接続情報と同じくSSM Parameter Storeから取得して注入する
+recaptcha_site_key="$(fetch_param "${RECAPTCHA_SSM_PREFIX}" site-key)"
+recaptcha_secret_key="$(fetch_param "${RECAPTCHA_SSM_PREFIX}" secret-key)"
 
 umask 177
 cat <<SECRETS_EOF > "${SECRETS_FILE}"
@@ -37,7 +43,9 @@ TASKALL_MAIL_HOST=${mail_host}
 TASKALL_MAIL_PORT=${mail_port}
 TASKALL_MAIL_USERNAME=${mail_username}
 TASKALL_MAIL_PASSWORD=${mail_password}
+TASKALL_RECAPTCHA_SITE_KEY=${recaptcha_site_key}
+TASKALL_RECAPTCHA_SECRET_KEY=${recaptcha_secret_key}
 SECRETS_EOF
 chmod 600 "${SECRETS_FILE}"
 
-echo "$(date '+%Y-%m-%d %H:%M:%S') [render-secrets-env] SSM Parameter Storeからメール接続情報を取得しました"
+echo "$(date '+%Y-%m-%d %H:%M:%S') [render-secrets-env] SSM Parameter Storeからメール接続情報・reCAPTCHAキーを取得しました"

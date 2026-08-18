@@ -19,6 +19,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import com.freedom.taskall_v2.common.util.MsgUtil;
 import com.freedom.taskall_v2.web.service.AccntAuthLockService;
 import com.freedom.taskall_v2.web.service.LoginStatusService;
+import com.freedom.taskall_v2.web.service.RecaptchaVerificationService;
 import com.freedom.taskall_v2.web.service.TwoFactorMailService;
 import com.freedom.taskall_v2.web.util.PasscodeGenerator;
 
@@ -47,18 +48,21 @@ public class TwoPhaseAuthenticationProvider implements AuthenticationProvider {
     private final LoginStatusService loginStatusService;
     private final PasscodeGenerator passcodeGenerator;
     private final TwoFactorMailService twoFactorMailService;
+    private final RecaptchaVerificationService recaptchaVerificationService;
     private final MsgUtil msg;
 
     public TwoPhaseAuthenticationProvider(AccountUserDetailsService accountUserDetailsService,
             PasswordEncoder passwordEncoder, AccntAuthLockService accntAuthLockService,
             LoginStatusService loginStatusService, PasscodeGenerator passcodeGenerator,
-            TwoFactorMailService twoFactorMailService, MsgUtil msg) {
+            TwoFactorMailService twoFactorMailService, RecaptchaVerificationService recaptchaVerificationService,
+            MsgUtil msg) {
         this.accountUserDetailsService = accountUserDetailsService;
         this.passwordEncoder = passwordEncoder;
         this.accntAuthLockService = accntAuthLockService;
         this.loginStatusService = loginStatusService;
         this.passcodeGenerator = passcodeGenerator;
         this.twoFactorMailService = twoFactorMailService;
+        this.recaptchaVerificationService = recaptchaVerificationService;
         this.msg = msg;
     }
 
@@ -67,6 +71,14 @@ public class TwoPhaseAuthenticationProvider implements AuthenticationProvider {
 
         String mailAddress = authentication.getName();
         String rawPassword = (String) authentication.getCredentials();
+
+        // アカウント有無を問わず一律に機械的な連続試行を遮断するため、認証冒頭でreCAPTCHAを検証する
+        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes())
+                .getRequest();
+        String recaptchaResponse = request.getParameter("g-recaptcha-response");
+        if (!recaptchaVerificationService.verify(recaptchaResponse)) {
+            throw new RecaptchaVerificationFailedException(msg.get("msg.warn.web.recaptchaVerificationFailed"));
+        }
 
         // メールアドレスに対応するアカウントが存在しない場合は、以降のテーブル操作を一切行わず
         // 即座に認証失敗とする(アカウント存在有無を推測されないようにするため)
@@ -86,9 +98,6 @@ public class TwoPhaseAuthenticationProvider implements AuthenticationProvider {
         }
 
         // RequestContextHolderから現在のリクエストを取得する
-        HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes())
-                .getRequest();
-
         // このセッション専用のログイン試行行を用意する(有効期限内の既存行があれば引き継ぐ)
         String sessionId = request.getSession().getId();
         LinkedHashMap<String, String> loginStatus = loginStatusService.beginAttempt(accountId, sessionId);

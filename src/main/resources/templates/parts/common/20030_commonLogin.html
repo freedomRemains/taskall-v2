@@ -13,6 +13,9 @@
                     <label for="PASSWORD" class="form-label">パスワード</label>
                     <input id="PASSWORD" type="password" name="PASSWORD" class="form-control" value="">
                 </div>
+                <div class="mb-3 d-flex justify-content-center">
+                    <div class="g-recaptcha" th:attr="data-sitekey=${recaptchaSiteKey}"></div>
+                </div>
                 <div class="d-grid">
                     <button type="button" class="btn btn-primary" onclick="submitMainForm()">サインイン</button>
                 </div>
