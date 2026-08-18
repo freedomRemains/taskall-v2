@@ -56,20 +56,20 @@ class FlywayMigrationServiceTest {
             throws Exception {
 
         DataSource dataSource = createDataSource(tempDir.resolve("fresh.db"));
-        // DbInitializerが最新スキーマ(PASSWORD_RESET含む)を新規作成済みの状態を模する。
+        // DbInitializerが最新スキーマ(PASSWORD_RESET・SIGN_UP含む)を新規作成済みの状態を模する。
         executeCreateSqlResources(dataSource, BASE_TABLES);
-        executeCreateSqlResources(dataSource, new String[] { "PASSWORD_RESET" });
+        executeCreateSqlResources(dataSource, new String[] { "PASSWORD_RESET", "SIGN_UP" });
 
         DbBootstrapState dbBootstrapState = new DbBootstrapState();
         dbBootstrapState.setFreshlyBootstrapped(true);
         new FlywayMigrationService(dataSource, dbBootstrapState).migrate();
 
         try (Connection connection = dataSource.getConnection()) {
-            // 既にPASSWORD_RESETが存在する状態でマイグレーションが実行されるとテーブル重複
+            // 既にPASSWORD_RESET・SIGN_UPが存在する状態でマイグレーションが実行されるとテーブル重複
             // エラーになるはずだが、ベースライン化により実行自体がスキップされるため、
             // GNR_KEY_VALへの新規行INSERTも行われていないことを確認する。
             assertThat(countRows(connection, "GNR_KEY_VAL", "GNR_KEY_VAL_ID = 1000405")).isEqualTo(0);
-            assertThat(countRows(connection, "flyway_schema_history", "version = '2' AND type = 'BASELINE'"))
+            assertThat(countRows(connection, "flyway_schema_history", "version = '3' AND type = 'BASELINE'"))
                     .isEqualTo(1);
         }
     }

@@ -656,3 +656,60 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     追加してよい(複雑化した場合のみ共通化を検討)、古い資材は目安3ヶ月変更依頼が
     無ければ`@Deprecated`化して削除候補とする、着手前に規模感の一言を伝えてコスト
     認識を共有する。
+
+---
+
+### issue #78: サインアップ機能の実装
+
+- issue #78: https://github.com/freedomRemains/taskall-v2/issues/78
+- PR #79（`feature/78`→`develop`）: https://github.com/freedomRemains/taskall-v2/pull/PLACEHOLDER
+- 関連パス:
+  - `src/main/java/com/freedom/taskall_v2/web/service/SignUpService.java`
+  - `src/main/java/com/freedom/taskall_v2/web/service/StartSignUpService.java`
+  - `src/main/java/com/freedom/taskall_v2/web/service/VerifySignUpService.java`
+  - `src/main/java/com/freedom/taskall_v2/web/service/SignUpMailService.java`
+  - `src/main/java/com/freedom/taskall_v2/web/service/SignUpCleanupScheduler.java`
+  - `src/main/java/com/freedom/taskall_v2/web/controller/TaskallV2Controller.java`
+  - `src/main/resources/db/data/TBL_DEF.txt`
+  - `src/main/resources/db/data/{URI_PATTERN,HTML_PAGE,HTML_PARTS,PARTS_IN_PAGE,PARTS_ITEM,SCR,SCR_ELM,HTML_PARTS_IN_APROLE,GNR_KEY_VAL}.txt`
+  - `src/main/resources/db/flyway/V3__add_sign_up.sql`
+  - `src/main/resources/msg/messages.properties`
+  - `src/main/resources/templates/10000_contents.html`
+  - `src/main/resources/templates/parts/{10160_signUpInput.html,10170_signUpPasscode.html}`
+  - `src/main/resources/templates/parts/common/{20160_commonSignUpInput.html,20170_commonSignUpPasscode.html}`
+  - `src/test/java/com/freedom/taskall_v2/web/service/{SignUpServiceTest,StartSignUpServiceTest,VerifySignUpServiceTest,SignUpMailServiceTest,SignUpCleanupSchedulerTest}.java`
+- 位置づけ: 規約確定までサインアップの入口は公開しない方針のため、既存画面(マイページ・
+  共通ヘッダ等)へサインアップへの導線(リンク)は一切追加していない。URLを直接叩けば動作する。
+- 実装要点(issue #69「パスワードを忘れたら」を厳密なテンプレートとして踏襲):
+  - `SIGN_UP`テーブルを新設し、`(SESSION_ID, MAIL_ADDRESS)`複合一意制約・`APROLE_ID`・
+    `ACCOUNT_NAME`・`PASSWORD_HASH`・`PASSCODE_HASH`・`FAIL_CNT`・`IS_LOCKED`・`EXPIRES_AT`を保持する。
+    `ACCOUNT_NAME`はissue本文の表には無いが、確定事項として1画面目でアカウント名入力欄を追加し
+    一時保持するため独自に追加した(TBL_DEF `1002505`)。
+  - サインアップ画面は「個人で登録(value=1)」「法人で登録(value=2)」をラジオボタン
+    (`name=ACCOUNT_KIND`)で選択させ、バックエンドで`1→APROLE_ID=1000101`/`2→1000201`に変換する。
+    画面にはID実値を出さず、`1/2`以外の改ざんパラメータは無言でトップ画面へリダイレクトする。
+  - 1画面目(`StartSignUpService`): メールアドレスは`.toLowerCase()`で正規化。パスワード確認不一致は
+    `GNR_KEY_VAL 1000406`、強度不足(`PasswordStrengthValidator`再利用)は`1000407`でエラー表示。
+    `ACCNT`に同一メール既存なら`1000408`でマイページへ、`SIGN_UP`同一メール行がロック中かつ期限内なら
+    `1000402`、それ以外(期限切れ/未ロック)は削除して新規受付。成功時は6桁コード入力画面へ遷移し
+    `pendingSignUpId`をセッションに格納。
+  - 2画面目(`VerifySignUpService`): `pendingSignUpId`空/該当行なし/セッションID不一致は無言でトップへ。
+    ロック中(期限内)は`1000402`、期限切れは行削除しトップへ、未ロックかつ期限切れは15分ロック化し
+    `1000402`。`ACCNT`に同一メール既存なら行削除し`1000409`(文言が1画面目の`1000408`と微妙に異なる)。
+    6桁コード一致なら`ACCNT`+`APROLE_IN_ACCNT`をINSERTし`SIGN_UP`行削除、`signUpCompleted=true`で
+    トップへ。不一致は`FAIL_CNT`加算、5回到達でロック(`1000402`)、未到達は`1000405`。
+  - `SignUpService.createAccount`は`GeneratedKeyHolder`で採番した`ACCNT_ID`と`SIGN_UP.APROLE_ID`を
+    使い`APROLE_IN_ACCNT`にも1行追加する。`findAccountByMailAddress`は`LOWER(MAIL_ADDRESS)=LOWER(?)`で比較。
+  - `SignUpMailService`は件名「サインアップ確認」で6桁コードを送信、送信失敗時は作成した`SIGN_UP`行を
+    削除して例外を再送出する。`SignUpCleanupScheduler`は`@Scheduled(initialDelay/fixedRate=10*60*1000)`。
+  - `TaskallV2Controller`に`/taskall-v2/service/signUp.html`・`signUpPasscode.html`(各GET/POST)を追加し、
+    `pendingSignUpId`のセッション引継ぎ・`signUpCompleted`フラグによるクリアを`pendingPasswordResetId`と
+    同じパターンで実装した。
+  - GNR_KEY_VALは既存の`1000402/1000405/1000406/1000407`を流用し、新規に`1000408`
+    (signUpMailExistsFromSignUpError)・`1000409`(signUpMailExistsFromPasscodeError)を追加した。
+  - 本番反映用に`db/flyway/V3__add_sign_up.sql`を追加(SIGN_UP CREATE + 各マスタテーブルの新規行INSERT)。
+  - 既存の件数固定テスト2件を新テーブル・新マイグレーションに合わせて更新:
+    `DbInitializationServiceTest`(25→26テーブル・770→828 INSERT)、`FlywayMigrationServiceTest`
+    (新規ブートストラップ時のベースラインバージョンを`2`→`3`、SIGN_UPテーブル作成を追加)。
+  - `db/data`変更後は`DbSchemaSqlGeneratorRealDataTest`で`db/sql`を再生成し、
+    `rm -f taskallv2.db && ./gradlew test`で全270テスト成功を確認した。

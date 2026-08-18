@@ -22,3 +22,5 @@ URI_PATTERN_ID	URI_PATTERN_NAME	URI_PATTERN	VERSION	IS_DELETED	CREATED_BY	CREATE
 1002201	二段階認証(二次認証コード入力)	/taskall-v2/service/twoFactorAuth.html	1	0	data_loader	2026-07-31 00:00:00	data_loader	2026-07-31 00:00:00
 1002301	パスワード再設定(メールアドレス入力)	/taskall-v2/service/inputMail.html	1	0	data_loader	2026-08-12 00:00:00	data_loader	2026-08-12 00:00:00
 1002401	パスワード再設定(6桁コード入力)	/taskall-v2/service/resetPasscode.html	1	0	data_loader	2026-08-12 00:00:00	data_loader	2026-08-12 00:00:00
+1002501	サインアップ(メールアドレス・パスワード入力)	/taskall-v2/service/signUp.html	1	0	data_loader	2026-08-18 00:00:00	data_loader	2026-08-18 00:00:00
+1002601	サインアップ(6桁コード入力)	/taskall-v2/service/signUpPasscode.html	1	0	data_loader	2026-08-18 00:00:00	data_loader	2026-08-18 00:00:00
