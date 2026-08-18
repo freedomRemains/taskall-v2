@@ -25,18 +25,21 @@ public class VerifySignUpService implements ScriptElementService {
     private static final String ACCOUNT_LOCK_ERROR_GNR_KEY_VAL_ID = "1000402";
     private static final String SIGN_UP_CODE_ERROR_GNR_KEY_VAL_ID = "1000405";
     private static final String MAIL_EXISTS_ERROR_GNR_KEY_VAL_ID = "1000409";
+    private static final String SIGN_UP_COMPLETE_NOTICE_GNR_KEY_VAL_ID = "1000106";
 
     private final SignUpService signUpService;
     private final PasswordEncoder passwordEncoder;
     private final ErrMsgService errMsgService;
+    private final NoticeService noticeService;
     private final ObjectMapper objectMapper;
     private final MsgUtil msg;
 
     public VerifySignUpService(SignUpService signUpService, PasswordEncoder passwordEncoder,
-            ErrMsgService errMsgService, ObjectMapper objectMapper, MsgUtil msg) {
+            ErrMsgService errMsgService, NoticeService noticeService, ObjectMapper objectMapper, MsgUtil msg) {
         this.signUpService = signUpService;
         this.passwordEncoder = passwordEncoder;
         this.errMsgService = errMsgService;
+        this.noticeService = noticeService;
         this.objectMapper = objectMapper;
         this.msg = msg;
     }
@@ -92,7 +95,7 @@ public class VerifySignUpService implements ScriptElementService {
             signUpService.createAccount(row.get("ACCOUNT_NAME"), mailAddress, row.get("PASSWORD_HASH"),
                     row.get("APROLE_ID"));
             signUpService.deleteById(signUpId);
-            return writeAsString(buildTopRedirect(true));
+            return writeAsString(buildTopRedirectWithCompleteNotice(sessionId));
         }
 
         // 6桁コード不一致は失敗回数を1回加算し、5回到達でロック、未到達なら再入力を促す
@@ -116,6 +119,16 @@ public class VerifySignUpService implements ScriptElementService {
         output.put("respKind", "redirect");
         output.put("destination", "/taskall-v2/service/top.html");
         output.put("signUpCompleted", signUpCompleted);
+        return output;
+    }
+
+    // サインアップ完了時のみ、NTC(通知)へ完了メッセージを登録し、TOP画面遷移後に表示させる
+    private ObjectNode buildTopRedirectWithCompleteNotice(String sessionId) {
+        String noticeKey = noticeService.getNoticeKey(sessionId, GUEST_ACCOUNT_ID, SIGN_UP_COMPLETE_NOTICE_GNR_KEY_VAL_ID);
+        ObjectNode output = objectMapper.createObjectNode();
+        output.put("respKind", "redirect");
+        output.put("destination", "/taskall-v2/service/top.html?noticeKey=" + noticeKey);
+        output.put("signUpCompleted", true);
         return output;
     }
 

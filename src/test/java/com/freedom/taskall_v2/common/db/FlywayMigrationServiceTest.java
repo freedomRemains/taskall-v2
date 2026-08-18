@@ -69,7 +69,7 @@ class FlywayMigrationServiceTest {
             // エラーになるはずだが、ベースライン化により実行自体がスキップされるため、
             // GNR_KEY_VALへの新規行INSERTも行われていないことを確認する。
             assertThat(countRows(connection, "GNR_KEY_VAL", "GNR_KEY_VAL_ID = 1000405")).isEqualTo(0);
-            assertThat(countRows(connection, "flyway_schema_history", "version = '3' AND type = 'BASELINE'"))
+            assertThat(countRows(connection, "flyway_schema_history", "version = '4' AND type = 'BASELINE'"))
                     .isEqualTo(1);
         }
     }

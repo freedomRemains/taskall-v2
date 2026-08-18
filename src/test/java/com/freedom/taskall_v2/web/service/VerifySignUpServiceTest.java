@@ -34,6 +34,9 @@ class VerifySignUpServiceTest {
     private ErrMsgService errMsgService;
 
     @Mock
+    private NoticeService noticeService;
+
+    @Mock
     private MsgUtil msgUtil;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -42,8 +45,8 @@ class VerifySignUpServiceTest {
 
     @BeforeEach
     void setUp() {
-        verifySignUpService =
-                new VerifySignUpService(signUpService, passwordEncoder, errMsgService, objectMapper, msgUtil);
+        verifySignUpService = new VerifySignUpService(signUpService, passwordEncoder, errMsgService, noticeService,
+                objectMapper, msgUtil);
     }
 
     @Test
@@ -171,7 +174,7 @@ class VerifySignUpServiceTest {
     }
 
     @Test
-    void 確認コードが一致する場合はアカウントを作成しトップ画面へ遷移すること() throws Exception {
+    void 確認コードが一致する場合はアカウントを作成しトップ画面へ通知付きで遷移すること() throws Exception {
 
         LinkedHashMap<String, String> row = baseRow();
         when(signUpService.findById("9")).thenReturn(Optional.of(row));
@@ -179,13 +182,14 @@ class VerifySignUpServiceTest {
         when(signUpService.isExpired(row)).thenReturn(false);
         when(signUpService.findAccountByMailAddress("user@example.com")).thenReturn(Optional.empty());
         when(passwordEncoder.matches("042817", "passcode-hash")).thenReturn(true);
+        when(noticeService.getNoticeKey("session-1", "1000001", "1000106")).thenReturn("55");
 
         String contextJson = objectMapper.writeValueAsString(java.util.Map.of(
                 "sessionId", "session-1", "pendingSignUpId", "9", "SIGN_UP_CODE", "042817"));
 
         JsonNode result = objectMapper.readTree(verifySignUpService.execute(contextJson));
 
-        assertThat(result.path("destination").asString()).isEqualTo("/taskall-v2/service/top.html");
+        assertThat(result.path("destination").asString()).isEqualTo("/taskall-v2/service/top.html?noticeKey=55");
         assertThat(result.path("signUpCompleted").asBoolean()).isTrue();
         verify(signUpService).createAccount("テスト太郎", "user@example.com", "password-hash", "1000101");
         verify(signUpService).deleteById("9");

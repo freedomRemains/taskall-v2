@@ -713,3 +713,42 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     (新規ブートストラップ時のベースラインバージョンを`2`→`3`、SIGN_UPテーブル作成を追加)。
   - `db/data`変更後は`DbSchemaSqlGeneratorRealDataTest`で`db/sql`を再生成し、
     `rm -f taskallv2.db && ./gradlew test`で全270テスト成功を確認した。
+
+#### フォローアップ: サインアップ完了時のNTC通知表示追加
+
+- 同issue #78・同PR #79への追加コミット。新規issue化はせず、サインアップ完了時に
+  「サインアップ完了しました。お手数ですが、サインインをお願いします。」を表示する依頼への対応。
+- 関連パス(追加分):
+  - `src/main/java/com/freedom/taskall_v2/web/service/NoticeService.java`(新規、`ErrMsgService`を
+    ほぼそのまま踏襲し`NTC`テーブルへ書き込む)
+  - `src/main/java/com/freedom/taskall_v2/web/service/{CreateHtmlService,VerifySignUpService}.java`
+  - `src/main/resources/db/data/{GNR_KEY_VAL,PARTS_IN_PAGE,PARTS_ITEM}.txt`
+  - `src/main/resources/db/flyway/V4__add_sign_up_complete_notice.sql`
+  - `src/test/java/com/freedom/taskall_v2/web/service/{NoticeServiceTest,CreateHtmlServiceTest,VerifySignUpServiceTest}.java`
+- 実装要点:
+  - 移植元remainzの`PARTS_ITEM`にある「`GNR_KEY_VAL`から定型メッセージをSELECTして通知」パターンを
+    参考にし、`ERR_MSG`/`ErrMsgService`と全く同じ「write-then-redirect-with-key」方式
+    (PRGパターン)を`NTC`テーブル向けに`NoticeService`として新規実装した。
+  - `HTML_PARTS_ID=1000701`(「通知表示領域」)は、remainz時代のDB管理画面向けに既に存在しており、
+    表示用テンプレート(`20080_commonNoticeList.html`)・全5ロール分の`HTML_PARTS_IN_APROLE`読み取り
+    権限も既に整っていたため、新規追加はTOP画面への`PARTS_IN_PAGE`配線と`PARTS_ITEM`クエリのみで済んだ。
+  - `20080_commonNoticeList.html`は`notice.GNR_VAL`列を参照する実装のため、テンプレート改修を避け
+    `SELECT NOTICE_MSG AS GNR_VAL FROM NTC WHERE NTC_ID = #{noticeKey}`と列名エイリアスで整合させた。
+  - `CreateHtmlService`に既存の`errMsgKey`デフォルト("0")と同様、`noticeKey`未指定時のデフォルト
+    ("0")補完ブロックを追加(このデフォルトが無いとサインアップ完了以外のTOP画面表示で
+    プレースホルダー解決に失敗する)。
+  - `VerifySignUpService`の6桁コード一致(アカウント作成成功)パスのみ`buildTopRedirectWithCompleteNotice`
+    を呼び出すよう変更し、他の無言リダイレクト(pendingSignUpId不在・セッション不一致・
+    期限切れ削除等)は通知を出さない従来の`buildTopRedirect(boolean)`のまま維持した。
+  - `GNR_KEY_VAL 1000106`(`signUpCompleteNotice`)を「汎用通知」グループ(`GNR_GRP_ID=1000101`)へ
+    追加。文言は依頼原文の句点抜けを補い、2文の間に`<br />`を挿入(同グループの既存メッセージの
+    スタイルに合わせた任意の整形)。
+  - 本番反映用に`db/flyway/V4__add_sign_up_complete_notice.sql`を追加(NTCテーブル自体は
+    Flyway導入以前から存在するためDDLは不要、マスタデータ3行のINSERTのみ)。
+  - 既存の件数固定テスト2件を追加データに合わせて更新: `DbInitializationServiceTest`
+    (828→831 INSERT)、`FlywayMigrationServiceTest`(新規ブートストラップ時のベースライン
+    バージョンを`3`→`4`)。
+  - `db/data`変更後は`DbSchemaSqlGeneratorRealDataTest`で`db/sql`を再生成し、
+    `rm -f taskallv2.db && ./gradlew test`で全273テスト成功を確認した。`bootRun`起動後、
+    `NTC`テーブルへ手動でメッセージ行を挿入し`?noticeKey=<id>`付きでTOP画面をGETして、
+    通知表示領域にメッセージが正しくレンダリングされることを目視確認した。

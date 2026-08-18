@@ -199,6 +199,24 @@ class CreateHtmlServiceTest {
     }
 
     @Test
+    void noticeKeyが未指定の場合は0がデフォルト設定されプレースホルダーが解決されること() {
+
+        LinkedHashMap<String, String> row = pageRow("1000003", "1000701", "通知表示領域",
+                "noticeList", "SELECT NOTICE_MSG AS GNR_VAL FROM NTC WHERE NTC_ID = #{noticeKey}");
+
+        when(recordQueryService.select(eq(PAGE_SQL), eq(List.of("/taskall-v2/service/top.html"))))
+                .thenReturn(new ArrayList<>(List.of(row)));
+        when(recordQueryService.select(eq("SELECT NOTICE_MSG AS GNR_VAL FROM NTC WHERE NTC_ID = 0")))
+                .thenReturn(new ArrayList<>());
+
+        String result = createHtmlService.execute(
+                "{\"requestKind\":\"GET\",\"requestUri\":\"/taskall-v2/service/top.html\"}");
+
+        JsonNode node = JsonMapper.builder().build().readTree(result);
+        assertThat(node.path("htmlPage").get(0).path("items").get(0).path("records")).isEmpty();
+    }
+
+    @Test
     void respKindとdestinationがコンテキストに既に存在する場合は上書きしないこと() {
 
         LinkedHashMap<String, String> row =

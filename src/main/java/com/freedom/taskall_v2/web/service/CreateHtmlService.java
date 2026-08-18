@@ -73,6 +73,14 @@ public class CreateHtmlService implements ScriptElementService {
             context.put("errMsgKey", "0");
         }
 
+        // noticeKeyも同様にPARTS_ITEM.ITEM_QUERY(noticeList)のプレースホルダとして参照されるが、
+        // サインアップ完了などのPRGパターンを経由しない通常の画面表示では入力JSONに含まれない。
+        // 未設定のままだとVariablePlaceholderResolverの解決に失敗するため、
+        // 「通知無し」を意味するデフォルト値"0"を補っておく。
+        if (context.path("noticeKey").asString("").isBlank()) {
+            context.put("noticeKey", "0");
+        }
+
         List<LinkedHashMap<String, String>> pageRows = recordQueryService.select(PAGE_SQL, List.of(requestUri));
         if (pageRows.isEmpty()) {
             throw new ApplicationInternalException(msg.get("msg.err.web.pageNotFound", requestUri));
