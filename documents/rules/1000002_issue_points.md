@@ -958,3 +958,33 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
   対応した。詳細な原因・防御策は`documents/rules/1000003_trouble_points.md`の
   「issue #84(PR #85マージ後)」節を参照。
 
+
+### issue #91: 本番環境で案件情報画面のPOST操作がシステムエラーとなる不具合の修正
+
+- issue: https://github.com/freedomRemains/taskall-v2/issues/91
+- 関連PR: https://github.com/freedomRemains/taskall-v2/pull/new/fix/91-csrf-model-overwrite （作成待ち）
+- 関連する相対パス:
+  - `src/main/java/com/freedom/taskall_v2/web/controller/TaskallV2Controller.java`
+  - `src/test/java/com/freedom/taskall_v2/web/controller/TaskallV2ControllerTest.java`
+  - `src/main/resources/templates/10000_contents.html`
+  - `src/main/java/com/freedom/taskall_v2/web/security/SecurityConfig.java`
+- 決定事項・要点:
+  - issue #84の案件一覧画面(案件情報)のPOST(ページネーション・属性検索)が本番のみ
+    システムエラーとなる不具合。原因は`TaskallV2Controller#buildContext()`が
+    リクエストパラメータを無条件にJSONコンテキストへコピーしており、本番でCSRF保護が
+    有効なため送信される`_csrf`パラメータも巻き込まれ、`populateModel()`でModelへ
+    書き戻す際にSpring Security自身が設定した`CsrfToken`型の`_csrf`属性を文字列で
+    上書きしていたこと(詳細な調査過程は`1000003_trouble_points.md`のissue #91の節参照)。
+  - `buildContext()`で`_csrf`パラメータをコンテキストへコピーする対象から除外する
+    ことで対応した。`populateModel()`側(出力側)ではなく`buildContext()`側(入力側)で
+    除外することで、`_csrf`がバックエンドの`ScriptElementService`チェーンへ渡る
+    こと自体を防いだ。
+  - 回帰テストとして、POSTパラメータに`_csrf`を含めても
+    `RequestHandlingService.execute()`へ渡るJSON文字列に`"_csrf"`が含まれないことを
+    検証するテストを追加。修正前のコードに対して当該テストが実際に失敗することを
+    確認した上でコミットした。
+- 検証結果:
+  - `./gradlew test --tests "*TaskallV2ControllerTest*"` 成功(19テスト全て)。
+  - 修正前のコードに対して同テストを実行し、`SpelEvaluationException`相当の
+    アサーション失敗が再現することを確認(回帰テストとして機能することの裏付け)。
+  - `./gradlew test`(全テスト)成功。

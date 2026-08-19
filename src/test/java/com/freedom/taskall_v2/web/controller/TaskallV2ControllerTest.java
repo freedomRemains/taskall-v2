@@ -123,6 +123,31 @@ class TaskallV2ControllerTest {
     }
 
     @Test
+    void CSRFトークンのフォームパラメータはリクエストコンテキストに転記されずModelのCsrfToken属性を上書きしないこと()
+            throws Exception {
+
+        // issue #91: SpringSecurityによりModelへ自動設定される"_csrf"(CsrfToken型)属性が、
+        // buildContext()経由でリクエストパラメータの"_csrf"(トークン文字列)がそのまま
+        // populateModel()でModelへ上書き設定されてしまい、Thymeleaf側の
+        // ${_csrf.parameterName}参照がSpelEvaluationExceptionで失敗する不具合の再発防止テスト。
+        when(requestHandlingService.execute(anyString())).thenReturn(
+                "{\"respKind\":\"forward\",\"destination\":\"10000_contents.html\","
+                        + "\"htmlPage\":[{\"partsInPageId\":\"1000001\",\"htmlPartsId\":\"1000001\","
+                        + "\"items\":[{\"itemKey\":\"systemName\",\"records\":[{\"GNR_VAL\":\"Taskall\"}]}]}],"
+                        + "\"account\":[{\"ACCNT_ID\":\"1000001\",\"ACCOUNT_NAME\":\"ゲスト\"}],"
+                        + "\"authList\":[{\"HTML_PARTS_ID\":\"1000001\",\"AUTH_KIND\":\"read\"}]}");
+
+        mockMvc.perform(post("/taskall-v2/service/ankenList.html")
+                        .param("_csrf", "dummy-csrf-token-value")
+                        .param("offset", "10"))
+                .andExpect(status().isOk());
+
+        org.mockito.ArgumentCaptor<String> contextJsonCaptor = org.mockito.ArgumentCaptor.forClass(String.class);
+        org.mockito.Mockito.verify(requestHandlingService).execute(contextJsonCaptor.capture());
+        assertThat(contextJsonCaptor.getValue()).doesNotContain("_csrf");
+    }
+
+    @Test
     void マイページのGETリクエストで応答種別forwardの場合はビュー名が拡張子無しで解決されること() throws Exception {
 
         when(requestHandlingService.execute(anyString())).thenReturn(
