@@ -24,3 +24,14 @@
 .nav-pills {
     --bs-nav-pills-link-active-bg: var(--bs-primary);
 }
+
+/*
+ * 案件一覧の行にマウスオーバーした際、背景色を変えて「クリックすると詳細に飛べそう」な
+ * 操作感を出す(現時点では詳細画面への遷移先は未実装だが、視覚的な予告として先行対応する)。
+ */
+.anken-row {
+    cursor: pointer;
+}
+.anken-row:hover {
+    background-color: var(--bs-primary-bg-subtle);
+}

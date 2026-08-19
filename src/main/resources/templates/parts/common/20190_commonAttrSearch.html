@@ -1,0 +1,39 @@
+<!--/* 属性検索領域。属性グループ・属性の一覧はGetAnkenListServiceが公開属性グループを除いた
+       状態で既にJOIN・整形して渡しているため、テンプレート側はそのままループ表示するだけでよい。
+       チェックボックスの名前は「attr<ATTR_ID>」とし、複数値パラメータが扱えないコントローラの
+       仕様に合わせて1属性=1個別パラメータとしている(同一グループ内はOR、グループ間はANDで絞り込む) */-->
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="body" class="1001801">
+    <div class="p-2">
+        <label class="form-label fw-bold">属性で絞り込む</label>
+
+        <div class="card mb-2" th:each="attrGrp : ${attrGroupList}">
+            <div class="card-header py-1" th:text="${attrGrp.attrGrpName}">属性グループ名</div>
+            <div class="card-body py-2">
+                <div class="row row-cols-1 row-cols-md-3 g-2">
+                    <div class="col" th:each="attr : ${attrGrp.attrs}">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"
+                                   th:id="${'attr' + attr.attrId}" th:name="${'attr' + attr.attrId}"
+                                   value="1" th:checked="${attr.checked}">
+                            <label class="form-check-label" th:for="${'attr' + attr.attrId}"
+                                   th:text="${attr.attrName}">属性名</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-center">
+            <input class="btn btn-primary btn-lg px-5 py-3" type="button" value="検索"
+                   onclick="saveAnkenAttrChecks(); changeAnkenOffset(0)">
+        </div>
+    </div>
+
+    <!--/* ページ読み込み時(F5によるGET再表示を含む)、セッションストレージに保存された
+           チェック状態を見た目だけ復元する。属性検索はPOSTのままフォワードする方式で
+           PRGパターンになっていないため、F5時のフォーム再送信警告自体は変わらないが、
+           チェック状態はJavaScriptで復元することでユーザの入力し直しの手間を減らす */-->
+    <script th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', restoreAnkenAttrChecks);
+    </script>
+</div>

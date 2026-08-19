@@ -35,3 +35,5 @@ SCR_ID	SCR_NAME	VERSION	IS_DELETED	CREATED_BY	CREATED_AT	UPDATED_BY	UPDATED_AT
 1101851	サインアップ(メールアドレス・パスワード入力)受付	1	0	data_loader	2026-08-18 00:00:00	data_loader	2026-08-18 00:00:00
 1101901	サインアップ(6桁コード入力)画面表示	1	0	data_loader	2026-08-18 00:00:00	data_loader	2026-08-18 00:00:00
 1101951	サインアップ(6桁コード入力)検証	1	0	data_loader	2026-08-18 00:00:00	data_loader	2026-08-18 00:00:00
+1102001	案件一覧	1	0	data_loader	2026-08-19 00:00:00	data_loader	2026-08-19 00:00:00
+1102051	案件一覧(属性検索、POST)	1	0	data_loader	2026-08-19 00:00:00	data_loader	2026-08-19 00:00:00

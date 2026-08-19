@@ -1,0 +1,5 @@
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="wrapper(part)"
+     th:if="${part.htmlPartsId == '1001801'
+             and T(com.freedom.taskall_v2.web.util.AuthUtil).hasReadAuth('1001801', authList)}">
+    <div th:replace="~{parts/common/20190_commonAttrSearch :: body}"></div>
+</div>

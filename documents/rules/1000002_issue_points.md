@@ -824,3 +824,128 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     `https://www.google.com/recaptcha/api.js`が含まれることを確認した。
   - 同起動中にGoogle公式テストキーで`siteverify`へPOSTし、
     `{\"success\": true, \"hostname\": \"testkey.google.com\"}`応答を確認した。
+
+### issue #83: 助か～る移植の設計書レビュー（案件情報テーブル定義・属性方針の確定）
+
+- issue: https://github.com/freedomRemains/taskall-v2/issues/83
+- 関連する相対パス:
+  - `documents/design/2000008_taskall_design.md`
+- 決定事項の要点:
+  - ANKENテーブルに所有企業を表す`ACCNT_ID`外部キーを追加した。
+  - 「公開/非公開」は専用カラムを設けず、`ATTR_IN_ANKEN`側の「公開属性」グループ
+    (「公開」「非公開」の2値)で表現する方針とした。
+  - 「外国籍可」等の案件分類も、`COUNTRY`のような専用カラムではなく属性
+    (`ATTR_IN_ANKEN`)側で表現する方針とし、`COUNTRY`列は削除した。
+  - `STATUS`の「2:充足終了」(自社アサインで人員充足)と「3:募集終了」(期限切れ等で
+    掲載終了)の意味を明記した。
+  - `ATTR_IN_ANKEN`(案件内属性)の組み合わせテーブル定義を明記し、`RECRUTE_NUM`の
+    スペルミスを`RECRUIT_NUM`へ修正した。
+  - 案件一覧の「新着10件」は`UPDATED_AT`降順、表示対象は`STATUS`が「募集中」のみ
+    という前提を確認した。
+  - 2週間経過後に案件を手動で閉める運用は別途検討事項として保留し、本issueの
+    スコープ外とした。
+- 本issueは仕様確認のみが目的で実装は行わず、実装は別issue(#84)で対応する方針。
+
+### issue #84: 案件一覧画面の実装
+
+- issue: https://github.com/freedomRemains/taskall-v2/issues/84
+- 関連する相対パス:
+  - `src/main/resources/db/data/{ATTR_GRP,ATTR,ANKEN,ATTR_IN_ANKEN,TBL_DEF,URI_PATTERN,HTML_PAGE,HTML_PARTS,SCR,SCR_ELM,PARTS_IN_PAGE,HTML_PARTS_IN_APROLE,PARTS_ITEM}.txt`
+  - `src/main/java/com/freedom/taskall_v2/web/service/GetAnkenListService.java`
+  - `src/test/java/com/freedom/taskall_v2/web/service/GetAnkenListServiceTest.java`
+  - `src/main/java/com/freedom/taskall_v2/web/controller/TaskallV2Controller.java`
+  - `src/main/resources/templates/parts/{10180_ankenList.html,10190_attrSearch.html}`
+  - `src/main/resources/templates/parts/common/{20180_commonAnkenList.html,20190_commonAttrSearch.html}`
+  - `src/main/resources/templates/10000_contents.html`
+  - `src/main/resources/static/js/rwscript.js`
+- 実装前のQ&Aで確定した仕様:
+  - 属性検索の絞り込みロジックは、同一グループ内はOR・グループ間はANDとする。
+  - 「詳細リンク」は当面プレーンテキストとし、詳細画面は別issueで対応する。
+  - ページングは1ページ固定10件とし、件数変更UIは設けない。
+  - 実装確認用のシードデータは、既存の`cmpnyuser@account.com`(法人ユーザ、
+    `ACCNT_ID=1000201`)が保有する案件として、約20件投入する。
+- 実装要点:
+  - `ATTR_GRP`/`ATTR`テーブルは、design docの前段issue(#83)で`TBL_DEF`にテーブル
+    定義のみ既存で未使用だったため、新規テーブル定義を重複追加しないよう注意し、
+    既存の定義(ID: 1002001〜1002114)へデータのみを新規投入した(採番の重複による
+    `CREATE TABLE`列重複エラーを実際に踏んだため、詳細は`1000003_trouble_points.md`
+    参照)。
+  - 「公開属性」グループ(`ATTR_GRP_ID=1000801`、「公開」「非公開」の2値)は検索
+    パネルには表示せず、`GetAnkenListService`側で常に「公開」属性を持つ案件のみを
+    対象とする固定条件として使用する。
+  - 属性検索チェックボックスは`attr<ATTR_ID>`という個別パラメータ名とした
+    (`TaskallV2Controller#buildContext`が`request.getParameterValues()`ではなく
+    `getParameter()`のみ対応のため、複数値パラメータが使えない制約による)。
+  - ページングは`10000_contents.html`の`mainForm`(POST)のoffset隠しフィールドを
+    JavaScript(`changeAnkenOffset()`)で書き換えて再送信する方式とし、属性検索の
+    チェック状態を維持したままページ送りできるようにした(GETリンク+クエリ
+    パラメータ方式は、最大68件の属性IDをURLへ載せる必要があり不採用とした)。
+  - 一覧表示に必要な「言語」属性は、`ATTR_IN_ANKEN`経由でJOINしたうえで
+    `GetAnkenListService`内のJavaコードで「/」区切り集約する(`GROUP_CONCAT`は
+    SQLite/MySQLで書き方が異なるため使用しない)。
+  - 案件一覧・属性検索領域は、Bootstrapのtable要素ではなくrow/colグリッド
+    (PC: 勤務地2/言語2/案件名4/単金2/期間2、モバイル: 勤務地6+言語6/案件名12/
+    単金6+期間6)で1案件=1カードとして構成し、レスポンシブな列数の違いを
+    素直に表現した。
+- 検証結果:
+  - `./gradlew test --tests "*GetAnkenListServiceTest*"` 成功。
+  - `./gradlew test --tests "*DbSchemaSqlGeneratorRealDataTest*"` で`db/sql`再生成成功。
+  - `rm -f taskallv2.db && ./gradlew test` 成功(全284テスト、`DbInitializationServiceTest`の
+    期待値を28テーブル・1171件のINSERTへ更新)。
+  - `./gradlew bootRun`起動後、PythonのHTTP取得でGET `/taskall-v2/service/ankenList.html`が
+    20件中10件を表示しページング可能なこと、ヘッダーに「案件情報」リンクが表示されること、
+    POST `attr1000003=1`(COBOL)送信で2件に絞り込まれ、チェックボックスのchecked状態が
+    維持されることを確認した。
+- PRマージ後の追加改修(同一issue #84、PR #85内で対応):
+  - ヘッダーの「案件情報」リンクをTOPとマイページの間に表示する要望に対し、
+    `PARTS_ITEM.txt`の`urlLink`クエリ(全18行、各PARTS_IN_PAGE_ID分)へ
+    `ORDER BY CASE A.SCR_ID_GET WHEN 1100001 THEN 1 WHEN 1102001 THEN 2 WHEN 1100201 THEN 3 END`
+    を追加して明示的に並び順を制御した。当初ユーザーから提案のあった`ORD_IN_GRP`列は
+    PARTS_ITEM行同士の並び順(グループ内の兄弟要素順)を制御する列であり、1クエリの
+    結果セット内の行順序には影響しないため不採用とし、SQL側の`ORDER BY`で対応する
+    方針とした。
+  - スマホでの操作性向上のため、「検索」ボタンを`btn-lg px-5 py-3`+
+    `d-flex justify-content-center`で親要素中央配置に変更した。
+  - 案件一覧の各行に`anken-row`クラスを付与し、`rwstyle.css`へ`.anken-row:hover`の
+    背景色変更(`--bs-primary-bg-subtle`)と`cursor: pointer`を追加し、クリック
+    可能な操作感を先行して演出した(詳細画面自体は未実装のまま、視覚効果のみ)。
+  - 属性検索がPOSTのままフォワードする方式(PRGパターン未対応)のため、F5時の
+    フォーム再送信自体は解消できないが、チェックボックスの選択状態のみを
+    `sessionStorage`(`ankenAttrSearchChecks`キー)に保存・復元するJS
+    (`saveAnkenAttrChecks()`/`restoreAnkenAttrChecks()`、`rwscript.js`)を追加した。
+    ユーザーの希望により、絞り込み結果自体は保存せず(F5後は通常のGETで
+    未絞り込みの一覧を表示)、チェック状態の見た目のみをJavaScriptで復元する
+    方式とした。`localStorage`ではなく`sessionStorage`を採用したのは、
+    ユーザーが「ずっと残り続けるのは操作感としてよくない」と明示したため。
+  - 上記のフォワード方式は、ユーザーからの追加指摘で「F5時のフォーム再送信警告
+    自体を回避したい(F5/URL直接指定時はデフォルト条件=最新10件で構わない)」との
+    要望を受け、`HTML_PAGE.txt`の案件情報行(`HTML_PAGE_ID=1002001`)の
+    `RESP_KIND_POST`/`DESTINATION_POST`を`forward`/`10000_contents.html`から
+    `redirect`/`ankenList.html`へ変更し、真のPRGパターンとした。属性検索の
+    絞り込み条件はリダイレクト先のGETには引き継がれない(GETは元々絞り込み
+    なしの一覧を返す実装のため)が、チェックボックスの見た目は前述の
+    `sessionStorage`により維持される。`GetAnkenListService`自身は
+    `respKind`/`destination`を設定しないため、`CreateHtmlService`が
+    `HTML_PAGE`の値をそのまま採用する既存の仕組みだけで対応でき、
+    サービスクラスの改修は不要だった。
+  - 上記のredirect化について、ユーザーが改めて調査・検討した結果、以下の理由で
+    差し戻しとなった(`HTML_PAGE.案件情報行`の`RESP_KIND_POST`/`DESTINATION_POST`を
+    `forward`/`10000_contents.html`へ再度戻した)。
+    - 属性検索は最大68属性分のパラメータをPOSTで送っており、GETのクエリ文字列に
+      載せるのは現実的でない(圧縮して渡す案も、メンテナンス性低下・将来の拡張の
+      ネックになりやすいため不採用)。
+    - 絞り込み結果を別画面にする、検索結果をテーブルに記憶する、検索条件を
+      DBに保存し`queryId`パラメータでGET化する、といった代替案もすべて
+      アンチパターンと判断し不採用(`queryId`案は検索が2回になる上、そもそも
+      PRGパターンを無理に適用すべきでない)。
+    - 本ページの特性上、PRGパターンの適用は原理的に困難であり、当初実装通り
+      POST時も`forward`/`10000_contents.html`とするのが正しい結論となった。
+    - ページネーション(`changeAnkenOffset()`)もPOSTパラメータ(offset)方式のままとし、
+      仕様変更しないこととした。属性検索とページネーションは常に不可分(属性検索時も
+      ページングを行う)であり、移植元「remainz」でもページネーションはGET
+      パラメータだったが、本ページでは分離するのは不適切と判断したため。
+    - なお、現行「助か～る」でも同様の絞り込み検索でフォーム再送信警告が発生する
+      仕様であり、本仕様はそれを踏襲する形となる。
+    - チェックボックスの選択状態を`sessionStorage`で復元する対応は、F5後の
+      見た目改善として引き続き有効(この部分は変更なし)。
+
