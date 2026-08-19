@@ -37,7 +37,6 @@ function changeAnkenOffset(offset) {
   document.getElementById('ankenOffset').value = offset;
   submitMainForm();
 }
-
 // 一括削除の確認処理
 function confirmBulkDelete() {
 
@@ -49,4 +48,36 @@ function confirmBulkDelete() {
 
   // メインフォームをサブミットする
   submitMainForm();
+}
+
+// 属性検索のチェックボックス状態をセッションストレージへ保存するキー
+const ANKEN_ATTR_CHECK_STORAGE_KEY = 'ankenAttrSearchChecks';
+
+// 属性検索フォームのチェック状態をセッションストレージへ保存する処理
+// (絞り込み結果自体は保存せず、見た目のチェック状態のみを記憶する。POST再送信によるF5警告を避けるため、
+//  検索実行時にチェック状態を保存しておき、F5後のGET表示時にJavaScriptで見た目だけ復元する)
+function saveAnkenAttrChecks() {
+
+  const checkedIds = [];
+  document.querySelectorAll('[id^="attr"]:checked').forEach(function (checkbox) {
+    checkedIds.push(checkbox.id);
+  });
+  sessionStorage.setItem(ANKEN_ATTR_CHECK_STORAGE_KEY, JSON.stringify(checkedIds));
+}
+
+// ページ読み込み時、セッションストレージに保存された属性検索のチェック状態を復元する処理
+function restoreAnkenAttrChecks() {
+
+  const saved = sessionStorage.getItem(ANKEN_ATTR_CHECK_STORAGE_KEY);
+  if (!saved) {
+    return;
+  }
+
+  const checkedIds = JSON.parse(saved);
+  checkedIds.forEach(function (id) {
+    const checkbox = document.getElementById(id);
+    if (checkbox) {
+      checkbox.checked = true;
+    }
+  });
 }

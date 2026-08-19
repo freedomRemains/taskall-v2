@@ -23,6 +23,17 @@
             </div>
         </div>
 
-        <input class="btn btn-primary px-2 py-0" type="button" value="検索" onclick="changeAnkenOffset(0)">
+        <div class="d-flex justify-content-center">
+            <input class="btn btn-primary btn-lg px-5 py-3" type="button" value="検索"
+                   onclick="saveAnkenAttrChecks(); changeAnkenOffset(0)">
+        </div>
     </div>
+
+    <!--/* ページ読み込み時(F5によるGET再表示を含む)、セッションストレージに保存された
+           チェック状態を見た目だけ復元する。属性検索はPOSTのままフォワードする方式で
+           PRGパターンになっていないため、F5時のフォーム再送信警告自体は変わらないが、
+           チェック状態はJavaScriptで復元することでユーザの入力し直しの手間を減らす */-->
+    <script th:inline="javascript">
+        document.addEventListener('DOMContentLoaded', restoreAnkenAttrChecks);
+    </script>
 </div>

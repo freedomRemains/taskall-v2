@@ -896,3 +896,24 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     20件中10件を表示しページング可能なこと、ヘッダーに「案件情報」リンクが表示されること、
     POST `attr1000003=1`(COBOL)送信で2件に絞り込まれ、チェックボックスのchecked状態が
     維持されることを確認した。
+- PRマージ後の追加改修(同一issue #84、PR #85内で対応):
+  - ヘッダーの「案件情報」リンクをTOPとマイページの間に表示する要望に対し、
+    `PARTS_ITEM.txt`の`urlLink`クエリ(全18行、各PARTS_IN_PAGE_ID分)へ
+    `ORDER BY CASE A.SCR_ID_GET WHEN 1100001 THEN 1 WHEN 1102001 THEN 2 WHEN 1100201 THEN 3 END`
+    を追加して明示的に並び順を制御した。当初ユーザーから提案のあった`ORD_IN_GRP`列は
+    PARTS_ITEM行同士の並び順(グループ内の兄弟要素順)を制御する列であり、1クエリの
+    結果セット内の行順序には影響しないため不採用とし、SQL側の`ORDER BY`で対応する
+    方針とした。
+  - スマホでの操作性向上のため、「検索」ボタンを`btn-lg px-5 py-3`+
+    `d-flex justify-content-center`で親要素中央配置に変更した。
+  - 案件一覧の各行に`anken-row`クラスを付与し、`rwstyle.css`へ`.anken-row:hover`の
+    背景色変更(`--bs-primary-bg-subtle`)と`cursor: pointer`を追加し、クリック
+    可能な操作感を先行して演出した(詳細画面自体は未実装のまま、視覚効果のみ)。
+  - 属性検索がPOSTのままフォワードする方式(PRGパターン未対応)のため、F5時の
+    フォーム再送信自体は解消できないが、チェックボックスの選択状態のみを
+    `sessionStorage`(`ankenAttrSearchChecks`キー)に保存・復元するJS
+    (`saveAnkenAttrChecks()`/`restoreAnkenAttrChecks()`、`rwscript.js`)を追加した。
+    ユーザーの希望により、絞り込み結果自体は保存せず(F5後は通常のGETで
+    未絞り込みの一覧を表示)、チェック状態の見た目のみをJavaScriptで復元する
+    方式とした。`localStorage`ではなく`sessionStorage`を採用したのは、
+    ユーザーが「ずっと残り続けるのは操作感としてよくない」と明示したため。
