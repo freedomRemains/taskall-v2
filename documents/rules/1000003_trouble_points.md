@@ -283,3 +283,40 @@ AIに確認や対応をお願いし、時間やクレジットを使ってしま
     - **`infra/ec2/**`配下のファイルを変更するPRをdevelop→mainマージする際は、マージ後に必ず`documents/procedure/3000021_terraform.md`の手順で`terraform plan`→`apply`を実行し、`aws_s3_object.ec2_scripts`に差分がないか確認する。** マージ直後にPRの説明欄へ「terraform applyが必要」である旨を明記する。
     - **`terraform apply`実行前後は、EC2側で`systemctl restart taskall-v2`等の手動操作を行わない。** `taskall-v2-release.timer`と競合するため、手動操作が必要な場合は先に`sudo systemctl stop taskall-v2-release.timer`でタイマーを止めてから行う。
     - `terraform apply`実行後は、`aws s3 cp s3://<artifact_bucket>/ec2-scripts/<変更したファイル名> - --region <region> | head`でS3側の内容が確実に更新されているか確認してから、EC2側の`systemctl restart taskall-v2`を実施する。
+
+### issue #84: 既存の`TBL_DEF`テーブル定義を確認せず、`ATTR_GRP`/`ATTR`を重複追加してしまった
+
+1. 概要
+
+    - issue #84(案件一覧画面)の実装で`ATTR_GRP`/`ATTR`テーブルのデータ(`ATTR_GRP.txt`/
+      `ATTR.txt`)を新規作成した際、`TBL_DEF.txt`にも両テーブルの列定義を新規追加した。
+    - `DbSchemaSqlGeneratorRealDataTest`実行後、`rm -f taskallv2.db && ./gradlew test`を
+      実行したところ、`TaskallV2ApplicationTests`等がSQLiteの
+      `duplicate column name: ATTR_GRP_ID`エラーで軒並み失敗した。
+
+2. 原因
+
+    - `TBL_DEF.txt`には、design doc(issue #83)策定時点で`ATTR_GRP`/`ATTR`の列定義が
+      既に(データ未投入のまま)登録済みだったが、実装時にその既存定義を確認せず、
+      同じテーブル名で新しいIDブロック(1002601〜1002711)の列定義を追記してしまい、
+      `CREATE_ATTR_GRP.sql`/`CREATE_ATTR.sql`に同一カラムが二重生成された。
+
+3. 対応
+
+    - `TBL_DEF.txt`から重複追加した`ATTR_GRP`/`ATTR`の列定義(1002601〜1002711)を削除し、
+      既存定義(1002001〜1002114)のみを残した。
+    - `ATTR_GRP.txt`/`ATTR.txt`のデータファイルは、既存の列定義(部分カラムのみで
+      `NUM_MIN`/`NUM_MAX`/`ATTR_NOTE`等は未使用)にそのまま合わせられることを確認し、
+      修正不要だった(`InsertSqlBuilder`はデータ行にあるカラムのみでINSERT文を
+      生成するため、列定義側の全カラムを埋める必要はない)。
+
+4. 防御策
+
+    - **`db/data`へ新規テーブルのデータファイルを追加する前に、必ず`TBL_DEF.txt`を
+      対象テーブル名で`grep`し、既存の列定義が(データ未投入のまま)登録済みでないか
+      確認する。** 特に、設計検討issue(design doc追加のみのissue)で先行して
+      テーブル定義だけ登録されているケースがあるため、実装issueで「新規テーブル」だと
+      思い込まず、既存定義の有無を必ず確認する。
+    - `db/data`変更後は`DbSchemaSqlGeneratorRealDataTest`→
+      `rm -f taskallv2.db && ./gradlew test`の順で必ず実行し、`CREATE TABLE`の重複列
+      エラーのような構造的な不整合をローカルで検出してから次の作業へ進む。

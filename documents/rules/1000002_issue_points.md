@@ -824,3 +824,75 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     `https://www.google.com/recaptcha/api.js`が含まれることを確認した。
   - 同起動中にGoogle公式テストキーで`siteverify`へPOSTし、
     `{\"success\": true, \"hostname\": \"testkey.google.com\"}`応答を確認した。
+
+### issue #83: 助か～る移植の設計書レビュー（案件情報テーブル定義・属性方針の確定）
+
+- issue: https://github.com/freedomRemains/taskall-v2/issues/83
+- 関連する相対パス:
+  - `documents/design/2000008_taskall_design.md`
+- 決定事項の要点:
+  - ANKENテーブルに所有企業を表す`ACCNT_ID`外部キーを追加した。
+  - 「公開/非公開」は専用カラムを設けず、`ATTR_IN_ANKEN`側の「公開属性」グループ
+    (「公開」「非公開」の2値)で表現する方針とした。
+  - 「外国籍可」等の案件分類も、`COUNTRY`のような専用カラムではなく属性
+    (`ATTR_IN_ANKEN`)側で表現する方針とし、`COUNTRY`列は削除した。
+  - `STATUS`の「2:充足終了」(自社アサインで人員充足)と「3:募集終了」(期限切れ等で
+    掲載終了)の意味を明記した。
+  - `ATTR_IN_ANKEN`(案件内属性)の組み合わせテーブル定義を明記し、`RECRUTE_NUM`の
+    スペルミスを`RECRUIT_NUM`へ修正した。
+  - 案件一覧の「新着10件」は`UPDATED_AT`降順、表示対象は`STATUS`が「募集中」のみ
+    という前提を確認した。
+  - 2週間経過後に案件を手動で閉める運用は別途検討事項として保留し、本issueの
+    スコープ外とした。
+- 本issueは仕様確認のみが目的で実装は行わず、実装は別issue(#84)で対応する方針。
+
+### issue #84: 案件一覧画面の実装
+
+- issue: https://github.com/freedomRemains/taskall-v2/issues/84
+- 関連する相対パス:
+  - `src/main/resources/db/data/{ATTR_GRP,ATTR,ANKEN,ATTR_IN_ANKEN,TBL_DEF,URI_PATTERN,HTML_PAGE,HTML_PARTS,SCR,SCR_ELM,PARTS_IN_PAGE,HTML_PARTS_IN_APROLE,PARTS_ITEM}.txt`
+  - `src/main/java/com/freedom/taskall_v2/web/service/GetAnkenListService.java`
+  - `src/test/java/com/freedom/taskall_v2/web/service/GetAnkenListServiceTest.java`
+  - `src/main/java/com/freedom/taskall_v2/web/controller/TaskallV2Controller.java`
+  - `src/main/resources/templates/parts/{10180_ankenList.html,10190_attrSearch.html}`
+  - `src/main/resources/templates/parts/common/{20180_commonAnkenList.html,20190_commonAttrSearch.html}`
+  - `src/main/resources/templates/10000_contents.html`
+  - `src/main/resources/static/js/rwscript.js`
+- 実装前のQ&Aで確定した仕様:
+  - 属性検索の絞り込みロジックは、同一グループ内はOR・グループ間はANDとする。
+  - 「詳細リンク」は当面プレーンテキストとし、詳細画面は別issueで対応する。
+  - ページングは1ページ固定10件とし、件数変更UIは設けない。
+  - 実装確認用のシードデータは、既存の`cmpnyuser@account.com`(法人ユーザ、
+    `ACCNT_ID=1000201`)が保有する案件として、約20件投入する。
+- 実装要点:
+  - `ATTR_GRP`/`ATTR`テーブルは、design docの前段issue(#83)で`TBL_DEF`にテーブル
+    定義のみ既存で未使用だったため、新規テーブル定義を重複追加しないよう注意し、
+    既存の定義(ID: 1002001〜1002114)へデータのみを新規投入した(採番の重複による
+    `CREATE TABLE`列重複エラーを実際に踏んだため、詳細は`1000003_trouble_points.md`
+    参照)。
+  - 「公開属性」グループ(`ATTR_GRP_ID=1000801`、「公開」「非公開」の2値)は検索
+    パネルには表示せず、`GetAnkenListService`側で常に「公開」属性を持つ案件のみを
+    対象とする固定条件として使用する。
+  - 属性検索チェックボックスは`attr<ATTR_ID>`という個別パラメータ名とした
+    (`TaskallV2Controller#buildContext`が`request.getParameterValues()`ではなく
+    `getParameter()`のみ対応のため、複数値パラメータが使えない制約による)。
+  - ページングは`10000_contents.html`の`mainForm`(POST)のoffset隠しフィールドを
+    JavaScript(`changeAnkenOffset()`)で書き換えて再送信する方式とし、属性検索の
+    チェック状態を維持したままページ送りできるようにした(GETリンク+クエリ
+    パラメータ方式は、最大68件の属性IDをURLへ載せる必要があり不採用とした)。
+  - 一覧表示に必要な「言語」属性は、`ATTR_IN_ANKEN`経由でJOINしたうえで
+    `GetAnkenListService`内のJavaコードで「/」区切り集約する(`GROUP_CONCAT`は
+    SQLite/MySQLで書き方が異なるため使用しない)。
+  - 案件一覧・属性検索領域は、Bootstrapのtable要素ではなくrow/colグリッド
+    (PC: 勤務地2/言語2/案件名4/単金2/期間2、モバイル: 勤務地6+言語6/案件名12/
+    単金6+期間6)で1案件=1カードとして構成し、レスポンシブな列数の違いを
+    素直に表現した。
+- 検証結果:
+  - `./gradlew test --tests "*GetAnkenListServiceTest*"` 成功。
+  - `./gradlew test --tests "*DbSchemaSqlGeneratorRealDataTest*"` で`db/sql`再生成成功。
+  - `rm -f taskallv2.db && ./gradlew test` 成功(全284テスト、`DbInitializationServiceTest`の
+    期待値を28テーブル・1171件のINSERTへ更新)。
+  - `./gradlew bootRun`起動後、PythonのHTTP取得でGET `/taskall-v2/service/ankenList.html`が
+    20件中10件を表示しページング可能なこと、ヘッダーに「案件情報」リンクが表示されること、
+    POST `attr1000003=1`(COBOL)送信で2件に絞り込まれ、チェックボックスのchecked状態が
+    維持されることを確認した。

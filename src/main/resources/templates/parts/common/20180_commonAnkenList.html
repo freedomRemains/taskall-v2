@@ -1,0 +1,58 @@
+<!--/* 案件一覧領域。案件名・単金・期間などはANKENテーブルの列だが、「言語」はATTR_IN_ANKEN経由の
+       属性のため、GetAnkenListServiceが事前にJOIN・集約した値をankenList配列へ含めている。
+       表形式ではなくBootstrapのrow/colグリッドで1案件=1カードとして組むことで、
+       PC版(勤務地2/言語2/案件名4/単金2/期間2)とスマホ版(勤務地6+言語6/案件名12/単金6+期間6)の
+       列数の違いをそのままレスポンシブに表現できるようにしている */-->
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="body" class="1001701"
+     th:with="currentLimitInt=10,
+              currentOffsetInt=${offset != null} ? ${T(java.lang.Integer).parseInt(offset)} : 0,
+              totalRecordInt=${T(java.lang.Integer).parseInt(ankenTotalCount)},
+              prevOffsetInt=${currentOffsetInt - currentLimitInt < 0 ? 0 : currentOffsetInt - currentLimitInt},
+              nextOffsetInt=${currentOffsetInt + currentLimitInt >= totalRecordInt ? currentOffsetInt : currentOffsetInt + currentLimitInt},
+              lastOffsetInt=${totalRecordInt == 0 ? 0 : (totalRecordInt - 1) / currentLimitInt * currentLimitInt}">
+    <div class="p-2">
+        <label class="form-label fw-bold">案件一覧(募集中のみ表示)</label>
+
+        <!--/* ページ送りはGETリンクではなく、mainForm(POST)のoffset隠しフィールドを書き換えて
+               再送信する方式とする。属性検索のチェック状態を維持したままページ送りできるようにするため */-->
+        <input type="hidden" id="ankenOffset" name="offset" th:value="${currentOffsetInt}">
+        <input type="hidden" name="limit" value="10">
+
+        <div class="d-none d-md-flex row fw-bold border-bottom py-2 mx-0">
+            <div class="col-md-2">勤務地</div>
+            <div class="col-md-2">言語</div>
+            <div class="col-md-4">案件名及び作業内容</div>
+            <div class="col-md-2">単金</div>
+            <div class="col-md-2">期間</div>
+        </div>
+
+        <div class="row border-bottom py-2 mx-0 g-2" th:each="anken : ${ankenList}">
+            <div class="col-6 col-md-2" th:text="${anken.workPlace}">勤務地</div>
+            <div class="col-6 col-md-2" th:text="${anken.languages}">言語</div>
+            <div class="col-12 col-md-4">
+                <div class="fw-bold" th:text="${anken.ankenName}">案件名</div>
+                <div class="text-muted small" th:text="${anken.description}">作業内容</div>
+            </div>
+            <div class="col-6 col-md-2" th:text="${anken.billingRate}">単金</div>
+            <div class="col-6 col-md-2" th:text="${anken.term}">期間</div>
+        </div>
+        <div th:if="${ankenList.isEmpty()}" class="text-muted py-3">該当する案件がありません。</div>
+
+        <div class="p-2">
+            <span th:if="${lastOffsetInt > 0}">
+                <input class="btn btn-secondary px-2 py-0" type="button" value="最初のページ"
+                       th:if="${currentOffsetInt > 0}" onclick="changeAnkenOffset(0)">&nbsp;
+                <input class="btn btn-secondary px-2 py-0" type="button" value="前のページ"
+                       th:if="${currentOffsetInt > 0}" th:attr="onclick=|changeAnkenOffset(${prevOffsetInt})|">&nbsp;
+                <input class="btn btn-secondary px-2 py-0" type="button" value="次のページ"
+                       th:if="${currentOffsetInt < lastOffsetInt}"
+                       th:attr="onclick=|changeAnkenOffset(${nextOffsetInt})|">&nbsp;
+                <input class="btn btn-secondary px-2 py-0" type="button" value="最後のページ"
+                       th:if="${currentOffsetInt < lastOffsetInt}"
+                       th:attr="onclick=|changeAnkenOffset(${lastOffsetInt})|">&nbsp;
+            </span>
+            <label><span class="form-label fw-bold"
+                         th:text="${totalRecordInt + '件中 ' + (totalRecordInt == 0 ? 0 : currentOffsetInt + 1) + '〜' + (currentOffsetInt + ankenList.size()) + '件表示'}">表示件数</span></label>
+        </div>
+    </div>
+</div>

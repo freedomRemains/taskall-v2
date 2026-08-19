@@ -30,6 +30,14 @@ function changeLimit(urlBase, offset) {
   redirectByUrl(urlBase + limit + offset);
 }
 
+// 案件一覧のページ送り処理(offset隠しフィールドを書き換えてから、属性検索の
+// チェック状態を維持したままメインフォームを再送信する)
+function changeAnkenOffset(offset) {
+
+  document.getElementById('ankenOffset').value = offset;
+  submitMainForm();
+}
+
 // 一括削除の確認処理
 function confirmBulkDelete() {
 
