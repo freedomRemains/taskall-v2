@@ -72,6 +72,16 @@ public class TaskallV2Controller {
         return handleRequest(request, "GET", model);
     }
 
+    @GetMapping("/taskall-v2/service/ankenList.html")
+    public String getAnkenList(HttpServletRequest request, Model model) {
+        return handleRequest(request, "GET", model);
+    }
+
+    @PostMapping("/taskall-v2/service/ankenList.html")
+    public String postAnkenList(HttpServletRequest request, Model model) {
+        return handleRequest(request, "POST", model);
+    }
+
     @GetMapping("/taskall-v2/service/twoFactorAuth.html")
     public String getTwoFactorAuth(HttpServletRequest request, Model model) {
         return handleRequest(request, "GET", model);

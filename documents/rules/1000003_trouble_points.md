@@ -257,3 +257,66 @@ AIに確認や対応をお願いし、時間やクレジットを使ってしま
 
     - 新規画面を追加する際は、`HTML_PAGE` / `HTML_PARTS` / `PARTS_IN_PAGE`だけでなく、`PARTS_ITEM`に`systemName`・必要な画面部品用`ITEM_KEY`が揃っているかを必ず確認する。
     - `db/data`を変更したら、`DbSchemaSqlGeneratorRealDataTest`の後に`DbInitializationServiceTest`と`rm -f taskallv2.db && ./gradlew test`を実行し、SQL実行件数のズレをその場で検出する。
+
+### issue #80: EC2側スクリプト変更を伴うマージ後、terraform apply未実施のまま本番反映しクラッシュループが発生した
+
+1. 概要
+
+    - issue #80(reCAPTCHA対応)のdevelop→mainマージ後、本番のreCAPTCHAチェックボックスが表示されなかった。
+    - ユーザーが調査のため`sudo systemctl restart taskall-v2`を手動実行したところ、EC2の`taskall-v2.service`が`update-ec2-scripts.sh`の`Permission denied`でクラッシュループ(再起動カウンタ70超)に陥った。
+    - `terraform apply`を実施し、EC2側スクリプト(`render-secrets-env.sh`)一式をS3経由で更新して復旧した。
+
+2. 原因
+
+    - 今回のPRは`infra/ec2/init/files/render-secrets-env.sh`(EC2側スクリプト)を変更したが、このファイル本体はTerraform(`infra/terraform/modules/ec2/main.tf`の`aws_s3_object.ec2_scripts`)経由でS3へアップロードされ、EC2側は`update-ec2-scripts.sh`が起動のたびにS3から取得する仕組みになっている。develop→mainマージ時のCI/CD(`cicd.yml`)はアプリ本体jarのみをS3へアップロードし、EC2側スクリプトの更新は対象外(スコープ外)のため、`terraform apply`を別途実行しない限りS3上のスクリプトは更新されない。
+    - `terraform apply`未実施のままユーザーが手動で`systemctl restart`したタイミングが、ちょうど5分間隔の`taskall-v2-release.timer`(release.sh経由の`update-ec2-scripts.sh`実行)と重なった。`update-ec2-scripts.sh`は`aws s3 cp`で自分自身を非アトミックに上書きするため、複数プロセスの同時実行により書き込み途中のファイルを別プロセスが実行しようとし、ファイルの実行権限が壊れる状態に陥った。
+
+3. 対応
+
+    - `taskall-v2-release.timer`を停止し、これ以上の競合を止めた。
+    - 壊れた`update-ec2-scripts.sh`等をS3から手動で`aws s3 cp`により再取得・`chmod 750`し直し、`taskall-v2.service`を1回だけ再起動して復旧を確認した。
+    - `terraform apply`を実施(誤った資材で一度実行していたため、正しい資材で再実行)し、S3上の`render-secrets-env.sh`が更新されたことを確認後、`taskall-v2.service`を再起動してreCAPTCHAキーが`secrets.env`に反映されることを確認した。
+    - `taskall-v2-release.timer`を再開した。
+
+4. 防御策
+
+    - **`infra/ec2/**`配下のファイルを変更するPRをdevelop→mainマージする際は、マージ後に必ず`documents/procedure/3000021_terraform.md`の手順で`terraform plan`→`apply`を実行し、`aws_s3_object.ec2_scripts`に差分がないか確認する。** マージ直後にPRの説明欄へ「terraform applyが必要」である旨を明記する。
+    - **`terraform apply`実行前後は、EC2側で`systemctl restart taskall-v2`等の手動操作を行わない。** `taskall-v2-release.timer`と競合するため、手動操作が必要な場合は先に`sudo systemctl stop taskall-v2-release.timer`でタイマーを止めてから行う。
+    - `terraform apply`実行後は、`aws s3 cp s3://<artifact_bucket>/ec2-scripts/<変更したファイル名> - --region <region> | head`でS3側の内容が確実に更新されているか確認してから、EC2側の`systemctl restart taskall-v2`を実施する。
+
+### issue #84: 既存の`TBL_DEF`テーブル定義を確認せず、`ATTR_GRP`/`ATTR`を重複追加してしまった
+
+1. 概要
+
+    - issue #84(案件一覧画面)の実装で`ATTR_GRP`/`ATTR`テーブルのデータ(`ATTR_GRP.txt`/
+      `ATTR.txt`)を新規作成した際、`TBL_DEF.txt`にも両テーブルの列定義を新規追加した。
+    - `DbSchemaSqlGeneratorRealDataTest`実行後、`rm -f taskallv2.db && ./gradlew test`を
+      実行したところ、`TaskallV2ApplicationTests`等がSQLiteの
+      `duplicate column name: ATTR_GRP_ID`エラーで軒並み失敗した。
+
+2. 原因
+
+    - `TBL_DEF.txt`には、design doc(issue #83)策定時点で`ATTR_GRP`/`ATTR`の列定義が
+      既に(データ未投入のまま)登録済みだったが、実装時にその既存定義を確認せず、
+      同じテーブル名で新しいIDブロック(1002601〜1002711)の列定義を追記してしまい、
+      `CREATE_ATTR_GRP.sql`/`CREATE_ATTR.sql`に同一カラムが二重生成された。
+
+3. 対応
+
+    - `TBL_DEF.txt`から重複追加した`ATTR_GRP`/`ATTR`の列定義(1002601〜1002711)を削除し、
+      既存定義(1002001〜1002114)のみを残した。
+    - `ATTR_GRP.txt`/`ATTR.txt`のデータファイルは、既存の列定義(部分カラムのみで
+      `NUM_MIN`/`NUM_MAX`/`ATTR_NOTE`等は未使用)にそのまま合わせられることを確認し、
+      修正不要だった(`InsertSqlBuilder`はデータ行にあるカラムのみでINSERT文を
+      生成するため、列定義側の全カラムを埋める必要はない)。
+
+4. 防御策
+
+    - **`db/data`へ新規テーブルのデータファイルを追加する前に、必ず`TBL_DEF.txt`を
+      対象テーブル名で`grep`し、既存の列定義が(データ未投入のまま)登録済みでないか
+      確認する。** 特に、設計検討issue(design doc追加のみのissue)で先行して
+      テーブル定義だけ登録されているケースがあるため、実装issueで「新規テーブル」だと
+      思い込まず、既存定義の有無を必ず確認する。
+    - `db/data`変更後は`DbSchemaSqlGeneratorRealDataTest`→
+      `rm -f taskallv2.db && ./gradlew test`の順で必ず実行し、`CREATE TABLE`の重複列
+      エラーのような構造的な不整合をローカルで検出してから次の作業へ進む。

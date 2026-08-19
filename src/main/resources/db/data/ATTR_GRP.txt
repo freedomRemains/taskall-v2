@@ -1,0 +1,10 @@
+ATTR_GRP_ID	ATTR_GRP_NAME	VERSION	IS_DELETED	CREATED_BY	CREATED_AT	UPDATED_BY	UPDATED_AT
+1000001	言語	1	0	data_loader	2026-08-19 00:00:00	data_loader	2026-08-19 00:00:00
+1000101	業種	1	0	data_loader	2026-08-19 00:00:00	data_loader	2026-08-19 00:00:00
+1000201	工程	1	0	data_loader	2026-08-19 00:00:00	data_loader	2026-08-19 00:00:00
+1000301	職種	1	0	data_loader	2026-08-19 00:00:00	data_loader	2026-08-19 00:00:00
+1000401	DB	1	0	data_loader	2026-08-19 00:00:00	data_loader	2026-08-19 00:00:00
+1000501	フレームワーク	1	0	data_loader	2026-08-19 00:00:00	data_loader	2026-08-19 00:00:00
+1000601	案件分類	1	0	data_loader	2026-08-19 00:00:00	data_loader	2026-08-19 00:00:00
+1000701	在宅勤務	1	0	data_loader	2026-08-19 00:00:00	data_loader	2026-08-19 00:00:00
+1000801	公開属性	1	0	data_loader	2026-08-19 00:00:00	data_loader	2026-08-19 00:00:00
