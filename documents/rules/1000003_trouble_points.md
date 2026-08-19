@@ -393,3 +393,49 @@ AIに確認や対応をお願いし、時間やクレジットを使ってしま
       定義のみ先行登録されていたのか(`git log`でデータファイルの初出コミットを
       確認)を必ず確認し、後者の場合も実テーブルが本番に存在するとは限らない前提で
       `CREATE TABLE IF NOT EXISTS`を用意する。
+
+### issue #91: 本番環境で案件情報画面のページネーション/属性検索(POST)がシステムエラーになった(CSRFトークンがModel属性を上書き)
+
+1. 概要
+
+    issue #84の案件一覧画面(案件情報)実装後、develop→mainマージ・本番反映を行ったところ、
+    案件一覧は正常表示されたが、ページネーションボタンや属性検索の「検索」ボタン(いずれも
+    `ankenList.html`へのPOST)をクリックするとシステムエラーとなった。ローカル環境では
+    再現しなかった。
+
+2. 原因
+
+    - `TaskallV2Controller#buildContext()`は、受信したリクエストパラメータを無条件に
+      JSONコンテキストへコピーしていた。
+    - 本番環境ではSpring SecurityのCSRF保護が有効(`SecurityConfig`の`local`プロファイルの
+      みCSRFを無効化)なため、POSTフォーム送信時に`_csrf`という隠しパラメータが必ず
+      送信される。ローカルはCSRF無効のため`_csrf`パラメータ自体が存在せず、本トラブルが
+      再現しなかった。
+    - `_csrf`パラメータもコンテキストJSONへコピーされ、`ScriptElementService`チェーンを
+      素通りしたまま`TaskallV2Controller#populateModel()`でModelへ書き戻される際、
+      Spring Securityが本来設定していた`CsrfToken`型の`_csrf`属性を、単なる文字列で
+      上書きしてしまっていた。
+    - 結果、`10000_contents.html`の`${_csrf.parameterName}`評価時に
+      `SpelEvaluationException: Property or field 'parameterName' cannot be found on
+      object of type 'java.lang.String'`が発生し、システムエラーとなった。
+
+3. 対応
+
+    - `TaskallV2Controller#buildContext()`で、リクエストパラメータをコンテキストへ
+      コピーする際に`_csrf`を除外するよう修正した。
+    - 回帰テストとして、POSTパラメータに`_csrf`を含めた場合でも、
+      `RequestHandlingService.execute()`へ渡されるJSON文字列に`"_csrf"`が含まれない
+      ことを検証するテストケースを追加した。
+
+4. 防御策
+
+    - **DB駆動のリクエストコンテキスト(`buildContext()`)へリクエストパラメータを
+      機械的に転記する実装を新規に書く/変更する場合は、Spring Securityなど
+      フレームワークが独自にModel属性を設定するパラメータ名(`_csrf`等)が
+      混入しないか確認する。** 混入した場合、`populateModel()`側での無条件な
+      Model上書きと組み合わさり、フレームワーク側の型付きオブジェクトが
+      文字列で上書きされる。
+    - **CSRF保護に依存する挙動(POSTフォーム送信・`_csrf`隠しフィールドを含む画面)は、
+      ローカル環境(CSRF無効)だけでなく、本番相当にCSRFを有効化した状態でのテストも
+      検討する。** 本トラブルはローカルでは`_csrf`パラメータ自体が送信されないため
+      再現せず、本番でのみ顕在化した典型例。
