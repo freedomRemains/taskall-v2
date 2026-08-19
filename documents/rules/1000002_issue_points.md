@@ -917,3 +917,14 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     未絞り込みの一覧を表示)、チェック状態の見た目のみをJavaScriptで復元する
     方式とした。`localStorage`ではなく`sessionStorage`を採用したのは、
     ユーザーが「ずっと残り続けるのは操作感としてよくない」と明示したため。
+  - 上記のフォワード方式は、ユーザーからの追加指摘で「F5時のフォーム再送信警告
+    自体を回避したい(F5/URL直接指定時はデフォルト条件=最新10件で構わない)」との
+    要望を受け、`HTML_PAGE.txt`の案件情報行(`HTML_PAGE_ID=1002001`)の
+    `RESP_KIND_POST`/`DESTINATION_POST`を`forward`/`10000_contents.html`から
+    `redirect`/`ankenList.html`へ変更し、真のPRGパターンとした。属性検索の
+    絞り込み条件はリダイレクト先のGETには引き継がれない(GETは元々絞り込み
+    なしの一覧を返す実装のため)が、チェックボックスの見た目は前述の
+    `sessionStorage`により維持される。`GetAnkenListService`自身は
+    `respKind`/`destination`を設定しないため、`CreateHtmlService`が
+    `HTML_PAGE`の値をそのまま採用する既存の仕組みだけで対応でき、
+    サービスクラスの改修は不要だった。
