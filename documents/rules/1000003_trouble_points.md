@@ -320,3 +320,76 @@ AIに確認や対応をお願いし、時間やクレジットを使ってしま
     - `db/data`変更後は`DbSchemaSqlGeneratorRealDataTest`→
       `rm -f taskallv2.db && ./gradlew test`の順で必ず実行し、`CREATE TABLE`の重複列
       エラーのような構造的な不整合をローカルで検出してから次の作業へ進む。
+
+### issue #84(PR #85マージ後): db/data変更に対応するFlywayマイグレーションを作成せず、develop→mainマージ後も本番DBに反映されなかった
+
+1. 事象
+
+    - issue #84(案件一覧画面)のPR #85をdevelop→mainへマージ後、ユーザーから
+      「案件情報のリンクが表示されない」と本番環境での不具合報告があった。
+    - ユーザーは当初、直前に発生したissue #80のトラブル(EC2スクリプト変更を伴う
+      マージ後、terraform apply未実施でクラッシュループ)を踏まえ、「今回もTerraformの
+      init/plan/applyが必要か」と質問した。
+
+2. 原因
+
+    - issue #84の実装では`db/data`配下に新規テーブル(`ANKEN`/`ATTR_IN_ANKEN`)の
+      作成、既存の`ATTR_GRP`/`ATTR`テーブルへのマスタデータ追加、および
+      `URI_PATTERN`/`HTML_PAGE`/`HTML_PARTS`/`PARTS_IN_PAGE`/`HTML_PARTS_IN_APROLE`/
+      `SCR`/`SCR_ELM`/`PARTS_ITEM`/`TBL_DEF`という9テーブルへの追加・更新を行ったが、
+      これに対応する`db/flyway/V{n}__*.sql`マイグレーションファイルを一切作成しなかった。
+    - 本プロジェクトの規約(`documents/design/2000001_base_design.md`)では、
+      `db/data`/`db/sql`は新規(未初期化)DBのブートストラップ専用であり、既存の
+      本番DBへ差分反映するには必ずFlywayマイグレーションが必要である。この規約を
+      失念したまま実装・レビュー・マージが完了してしまった。
+    - 今回の原因はissue #80(`infra/ec2/**`変更に伴うterraform apply漏れ)とは
+      別種のデプロイ漏れであり、「マージ後に本番に自動反映されない変更がある」という
+      構造的なパターンが2回連続で発生した形になる。
+
+3. 対応
+
+    - `src/main/resources/db/flyway/V6__add_anken_list.sql`を新規作成し、
+      issue #84のPR差分から抽出した以下を1ファイルにまとめて反映した。
+        - `ATTR_GRP`/`ATTR`(TBL_DEF定義は初期コミットから存在したが実テーブル未作成
+          だったため`CREATE TABLE IF NOT EXISTS`が必要)、`ANKEN`/`ATTR_IN_ANKEN`
+          (完全新規)の`CREATE TABLE IF NOT EXISTS`。
+        - 上記4テーブルのマスタ・シードデータ`INSERT`(`db/sql/INSERT_*.sql`を流用)。
+        - `TBL_DEF`への27行の列定義`INSERT`(`db/data/TBL_DEF.txt`の値を
+          そのまま抽出。空文字とNULLの区別を`InsertSqlBuilder`と同じ規則に合わせる
+          必要があった)。
+        - `URI_PATTERN`/`HTML_PAGE`(POSTは最終決定通り`forward`/
+          `10000_contents.html`)/`HTML_PARTS`/`PARTS_IN_PAGE`/
+          `HTML_PARTS_IN_APROLE`/`SCR`/`SCR_ELM`/`PARTS_ITEM`(新規2行+既存17行の
+          `UPDATE`)への`INSERT`/`UPDATE`。
+    - 検証は「issue #84直前のコミット(`466a2bd`)でDBをブートストラップ→
+      `taskallv2.db`をコピー→現行コードで起動しFlywayを適用」した結果と、
+      「現行`db/data`でゼロから新規ブートストラップした結果」を主要13テーブルで
+      突き合わせ、完全一致することを確認した。この過程で以下2件のバグを検出・修正した。
+        - `PARTS_ITEM`のurlLink 17行の`VERSION`を`+1`していたが、実際は
+          `db/data`側で2回(#84本体でOR句追加、追加改修でORDER BY追加)更新されて
+          いたため`+2`が正しかった(`VERSION`不一致で発覚)。
+        - `ATTR_GRP`/`ATTR`の`CREATE TABLE`がV6に含まれておらず、`FlywayMigrationServiceTest`
+          の「既存DBにV1ベースライン→未適用マイグレーション適用」テストで
+          `no such table: ATTR_GRP`エラーとなり発覚(こちらのテストの方が
+          issue #84直前の本番相当の状態に近く、手動突き合わせだけでは検出できなかった)。
+    - `FlywayMigrationServiceTest`のうち、最新バージョンを`5`と決め打ちしていた
+      アサーションを`6`に修正した(新しいマイグレーション追加のたびに追従が必要な
+      既知の固定値であり、issue #80のトラブル記録にある「件数固定テスト」と同種の
+      注意点)。
+
+4. 防御策
+
+    - **`db/data`配下のファイルを1行でも追加・変更するPRは、必ず対応する
+      `db/flyway/V{n}__*.sql`を同一PR内に含めることを必須のセルフチェック項目とする。**
+      レビュー・マージ前に「このPRは`db/data`を変更したか」→「変更した場合、
+      対応するFlywayファイルはあるか」を機械的に確認する。
+    - Flywayマイグレーションを新規作成した場合は、`FlywayMigrationServiceTest`の
+      ような既存DB相当のテストで実際に適用できることを確認する。可能であれば
+      「変更前コミットでブートストラップ→マイグレーション適用」と「変更後の
+      `db/data`でゼロからブートストラップ」の結果を突き合わせ、完全に一致することを
+      確認する(本トラブル対応で実施した手順を今後のテンプレートとする)。
+    - 新規テーブルをFlywayマイグレーションでCREATEする際は、そのテーブルの
+      `TBL_DEF`登録が今回のissueで初めて追加されたのか、それとも過去のissueで
+      定義のみ先行登録されていたのか(`git log`でデータファイルの初出コミットを
+      確認)を必ず確認し、後者の場合も実テーブルが本番に存在するとは限らない前提で
+      `CREATE TABLE IF NOT EXISTS`を用意する。
