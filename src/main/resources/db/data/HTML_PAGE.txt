@@ -19,4 +19,4 @@ HTML_PAGE_ID	PAGE_NAME	URI_PATTERN_ID	SCR_ID_GET	RESP_KIND_GET	DESTINATION_GET	S
 1001701	パスワード再設定(6桁コード入力)	1002401	1101701	forward	10000_contents.html	1101751	redirect	top.html	0	redirect	top.html	0	redirect	top.html	1	0	data_loader	2026-08-12 00:00:00	data_loader	2026-08-12 00:00:00
 1001801	サインアップ(メールアドレス・パスワード入力)	1002501	1101801	forward	10000_contents.html	1101851	redirect	top.html	0	redirect	top.html	0	redirect	top.html	1	0	data_loader	2026-08-18 00:00:00	data_loader	2026-08-18 00:00:00
 1001901	サインアップ(6桁コード入力)	1002601	1101901	forward	10000_contents.html	1101951	redirect	top.html	0	redirect	top.html	0	redirect	top.html	1	0	data_loader	2026-08-18 00:00:00	data_loader	2026-08-18 00:00:00
-1002001	案件情報	1002701	1102001	forward	10000_contents.html	1102051	redirect	ankenList.html	0	redirect	top.html	0	redirect	top.html	2	0	data_loader	2026-08-19 00:00:00	data_loader	2026-08-19 00:00:00
+1002001	案件情報	1002701	1102001	forward	10000_contents.html	1102051	forward	10000_contents.html	0	redirect	top.html	0	redirect	top.html	3	0	data_loader	2026-08-19 00:00:00	data_loader	2026-08-19 00:00:00
