@@ -285,6 +285,13 @@ public class TaskallV2Controller {
 
         for (Enumeration<String> names = request.getParameterNames(); names.hasMoreElements();) {
             String name = names.nextElement();
+            // CSRFトークンのフォームパラメータ("_csrf")は業務ロジックに不要な上、そのままModelへ
+            // 転記されるとSpringSecurityが本来設定するCsrfToken型の"_csrf"属性を文字列で
+            // 上書きしてしまい、Thymeleaf側の${_csrf.parameterName}参照がSpelEvaluationException
+            // で失敗する(issue #91)。本番のみCSRF対策が有効なため、ローカル環境では発生しない。
+            if ("_csrf".equals(name)) {
+                continue;
+            }
             context.put(name, request.getParameter(name));
         }
 
