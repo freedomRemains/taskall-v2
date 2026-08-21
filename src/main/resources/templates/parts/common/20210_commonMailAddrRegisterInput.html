@@ -1,0 +1,28 @@
+<!--/* メールアドレス登録入力領域(issue #96)。監視対象メールアドレス(Gmailもしくは平文認証の
+       自社メールサーバのいずれか)とそのパスワードを入力させ、「登録」ボタン押下時に
+       実際にメールボックスへ接続できるかをサーバ側で確認してから登録する。 */-->
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="body" class="1002001 row justify-content-center my-5">
+    <div class="col-12 col-md-6 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h5 card-title text-center mb-4">メールアドレス登録</h1>
+                <p class="text-center mb-4">
+                    案件・人材のメールが届くGmailアカウント、もしくは自社メールサーバのメールアドレスと
+                    パスワードを入力してください。
+                </p>
+                <div class="mb-3">
+                    <label for="MAIL_ADDR" class="form-label">メールアドレス</label>
+                    <input id="MAIL_ADDR" name="MAIL_ADDR" class="form-control" autocomplete="email">
+                </div>
+                <div class="mb-4">
+                    <label for="PASSWORD" class="form-label">パスワード</label>
+                    <input id="PASSWORD" type="password" name="PASSWORD" class="form-control"
+                           autocomplete="current-password">
+                </div>
+                <div class="d-grid">
+                    <button type="button" class="btn btn-primary" onclick="submitMainForm()">登録</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

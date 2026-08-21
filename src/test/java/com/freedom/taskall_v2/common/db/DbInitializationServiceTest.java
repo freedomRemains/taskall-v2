@@ -47,6 +47,10 @@ class DbInitializationServiceTest {
         // issue #84で案件一覧画面用にANKEN・ATTR_IN_ANKENテーブルが追加され、26から28へ変更。
         // 同issueでATTR_GRP/ATTR(既存テーブル定義のみで未使用だったもの)へのデータ投入、案件・
         // 案件内属性・画面関連のDBデータが増え、INSERT総数が834から1171へ増加。
-        verify(jdbcTemplate, times(28 + 28 + 1171)).execute(anyString());
+        // issue #96でメールアドレス登録画面用にMAIL_ADDR_IN_ACCNTテーブルが追加され、28から29へ変更。
+        // 同issueで画面・メッセージ・画面部品関連のDBデータが増え、INSERT総数が1171から1207へ増加。
+        // 同issueのフォローアップで、法人ユーザ(APROLE_ID=1000201)にエラーメッセージ表示部品
+        // (HTML_PARTS_ID=1001101)のread権限が漏れていた不具合を修正し、1207から1208へ増加。
+        verify(jdbcTemplate, times(29 + 29 + 1208)).execute(anyString());
     }
 }

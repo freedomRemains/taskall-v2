@@ -5,3 +5,4 @@ GNR_GRP_ID	GNR_GRP_NAME	VERSION	IS_DELETED	CREATED_BY	CREATED_AT	UPDATED_BY	UPDA
 1000301	楽観ロックエラー	1	0	data_loader	2024-11-24 00:00:00	data_loader	2024-11-24 00:00:00
 1000401	ログインエラー	1	0	data_loader	2024-11-24 00:00:00	data_loader	2024-11-24 00:00:00
 1000501	キー重複エラー	1	0	data_loader	2025-02-23 00:00:00	data_loader	2025-02-23 00:00:00
+1000601	メールアドレス登録エラー	1	0	data_loader	2026-08-25 00:00:00	data_loader	2026-08-25 00:00:00

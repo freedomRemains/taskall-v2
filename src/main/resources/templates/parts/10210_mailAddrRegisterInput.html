@@ -1,0 +1,5 @@
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="wrapper(part)"
+     th:if="${part.htmlPartsId == '1002001'
+             and T(com.freedom.taskall_v2.web.util.AuthUtil).hasEditAuth('1002001', authList)}">
+    <div th:replace="~{parts/common/20210_commonMailAddrRegisterInput :: body}"></div>
+</div>

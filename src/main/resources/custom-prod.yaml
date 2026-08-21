@@ -32,3 +32,16 @@ taskall:
   recaptcha:
     site-key: ${TASKALL_RECAPTCHA_SITE_KEY:}
     secret-key: ${TASKALL_RECAPTCHA_SECRET_KEY:}
+
+  # 監視対象メールアドレス(issue #96)の接続確認先(平文認証の自社メールサーバ)。
+  # 本番では自社メールサーバのホスト・ポートを環境変数で注入する。
+  mail-addr-verification:
+    plain-host: ${TASKALL_MAIL_ADDR_PLAIN_HOST:}
+    plain-port: ${TASKALL_MAIL_ADDR_PLAIN_PORT:143}
+
+  # 監視対象メールアドレスのパスワード暗号化(issue #96、AWS KMSによるエンベロープ暗号化)。
+  # 本番のEC2デプロイでは、init.sh.tftpl(infra/terraform/modules/ec2)が/etc/taskall-v2/config.env
+  # 経由でTASKALL_MAIL_ADDR_ENCRYPTION_ENABLED=trueおよびKMSキーIDを明示的に設定する。
+  mail-addr-encryption:
+    enabled: ${TASKALL_MAIL_ADDR_ENCRYPTION_ENABLED:false}
+    kms-key-id: ${TASKALL_MAIL_ADDR_ENCRYPTION_KMS_KEY_ID:}

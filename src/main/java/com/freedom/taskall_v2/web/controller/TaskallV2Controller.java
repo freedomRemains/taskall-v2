@@ -122,6 +122,16 @@ public class TaskallV2Controller {
         return handleRequest(request, "POST", model);
     }
 
+    @GetMapping("/taskall-v2/service/mailAddrRegister.html")
+    public String getMailAddrRegister(HttpServletRequest request, Model model) {
+        return handleRequest(request, "GET", model);
+    }
+
+    @PostMapping("/taskall-v2/service/mailAddrRegister.html")
+    public String postMailAddrRegister(HttpServletRequest request, Model model) {
+        return handleRequest(request, "POST", model);
+    }
+
     @GetMapping("/taskall-v2/service/signUpPasscode.html")
     public String getSignUpPasscode(HttpServletRequest request, Model model) {
         return handleRequest(request, "GET", model);

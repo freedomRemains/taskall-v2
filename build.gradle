@@ -42,6 +42,7 @@ dependencies {
 
 	// SSM Parameter StoreからSecureStringパラメータを取得するための設定
 	implementation 'software.amazon.awssdk:ssm'
+	implementation 'software.amazon.awssdk:kms'
 
 	// JDBCを使用するための設定
 	implementation 'org.springframework.boot:spring-boot-starter-jdbc'

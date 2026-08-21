@@ -19,3 +19,5 @@ HTML_PARTS_ID	PARTS_NAME	VERSION	IS_DELETED	CREATED_BY	CREATED_AT	UPDATED_BY	UPD
 1001601	サインアップ確認コード入力領域	1	0	data_loader	2026-08-18 00:00:00	data_loader	2026-08-18 00:00:00
 1001701	案件一覧領域	1	0	data_loader	2026-08-19 00:00:00	data_loader	2026-08-19 00:00:00
 1001801	属性検索領域	1	0	data_loader	2026-08-19 00:00:00	data_loader	2026-08-19 00:00:00
+1001901	メールアドレス登録状況領域	1	0	data_loader	2026-08-25 00:00:00	data_loader	2026-08-25 00:00:00
+1002001	メールアドレス登録入力領域	1	0	data_loader	2026-08-25 00:00:00	data_loader	2026-08-25 00:00:00
