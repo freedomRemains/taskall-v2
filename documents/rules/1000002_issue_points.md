@@ -1051,5 +1051,19 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     1テーブル分のDROP/CREATE)に合わせて更新。
   - アプリをローカル起動し、未ログイン状態のマイページGETが新規パーツを含めて
     正常にレンダリングされることを確認。二段階認証(メール送信)を伴うログインの
-    完全なE2E検証は、サンドボックス環境に実メールサーバが無いため未実施
+    完全なE2E検証は、AIの作業サンドボックス環境に実メールサーバが無いため未実施
     (新機能自体のバグではなく、既存ログイン機構の検証環境上の制約)。
+- **追記(ローカル検証用の平文認証IMAPサーバ追加)**: ユーザーから、mailhogはSMTP受信
+  専用で「監視対象メールアドレスへのIMAP接続確認」自体はローカル検証できない点を
+  指摘され、`infra/docker/docker-compose.yml`にGreenMail(`greenmail/standalone:2.0.1`、
+  テスト用途の軽量メールサーバでSMTP/IMAP/POP3を実装)を`mail-imap`サービスとして追加した。
+  - `GREENMAIL_OPTS`でデフォルトの`-Dgreenmail.auth.disabled`(誰でもログイン可)を
+    上書きし、実際にユーザー名・パスワードで認証させる。テストアカウントは
+    `mailaddrtest@localhost` / `mailaddrtest`の1件のみ作成し、
+    `-Dgreenmail.users.login=email`によりログインIDをメールアドレス全体とする
+    (taskall-v2側の`MAIL_ADDRESS`はメールアドレス形式で送信されるため)。
+  - GreenMailのIMAPポート(コンテナ内3143、デフォルトポート+3000)をホストの143番へ
+    マッピングし、`custom-local.yaml`の`taskall.mail-addr-verification.plain-port: 143`
+    (既存設定、変更不要)とそのまま整合させた。
+  - AIの作業サンドボックス環境にはdockerコマンド自体が存在せず、本追加の動作確認は
+    ユーザーのローカル環境(`docker compose up -d`)での検証に委ねている。

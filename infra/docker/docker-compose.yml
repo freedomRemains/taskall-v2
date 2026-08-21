@@ -17,3 +17,35 @@ services:
     ports:
       - 1025:1025
       - 8025:8025
+
+  # 監視対象メールアドレス(issue #96)の接続確認をローカルでも検証できるようにするための
+  # 平文認証IMAPサーバの設定。GreenMailはテスト用途の軽量メールサーバで、SMTP/IMAPを
+  # 実装しており、mailhog(SMTP受信のみ)では代用できない「IMAPログイン確認」の検証に使う。
+  mail-imap:
+
+    # コンテナ名
+    container_name: image_greenmail
+
+    # イメージはGreenMail standaloneの最新版とする
+    image: greenmail/standalone:2.0.1
+
+    # 環境変数の設定
+    environment:
+
+      # デフォルト設定(-Dgreenmail.auth.disabled)を上書きし、実際に認証を行わせる。
+      # テスト用アカウント(mailaddrtest@localhost / mailaddrtest)を1件作成し、
+      # ログインIDはローカルパートではなくメールアドレス全体とする
+      # (taskall-v2側のMAIL_ADDRESSはメールアドレス形式で送信されるため)
+      GREENMAIL_OPTS: >-
+        -Dgreenmail.setup.test.smtp.imap
+        -Dgreenmail.hostname=0.0.0.0
+        -Dgreenmail.users=mailaddrtest:mailaddrtest@localhost
+        -Dgreenmail.users.login=email
+
+    # ポート設定
+    # GreenMailのデフォルトポートに+3000したものが実際の待受ポートとなるため、
+    # ホスト側は custom-local.yaml の taskall.mail-addr-verification.plain-port(143)に
+    # 合わせてIMAP(3143)のみ143番へマッピングする。SMTP(3025)もメール受信確認用に公開する
+    ports:
+      - 143:3143
+      - 1143:3025
