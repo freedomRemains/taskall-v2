@@ -1067,3 +1067,15 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
     (既存設定、変更不要)とそのまま整合させた。
   - AIの作業サンドボックス環境にはdockerコマンド自体が存在せず、本追加の動作確認は
     ユーザーのローカル環境(`docker compose up -d`)での検証に委ねている。
+- **追記(GreenMail起動不備・法人ユーザのエラーメッセージ非表示の修正)**: ユーザーが
+  実際にGreenMailを起動して登録操作を行ったところ、正しい/誤った資格情報のいずれでも
+  画面上に変化が無いと報告があり、調査の結果`GREENMAIL_OPTS`の
+  `-Dgreenmail.setup.test.smtp.imap`という連結指定がGreenMail側で認識されず、
+  IMAP/SMTPどちらのサーバも起動していなかったことが根本原因と判明した(詳細な原因・
+  防御策は`1000003_trouble_points.md`の該当節を参照)。`smtp`/`imap`を別々のオプションに
+  分割して修正。加えて調査の過程で、エラーメッセージ表示部品(`HTML_PARTS_ID=1001101`)に
+  法人ユーザ(`APROLE_ID=1000201`)のread権限が漏れていたissue #96以前からの潜在バグを
+  発見し、`HTML_PARTS_IN_APROLE`に権限行を追加して修正した(`DbInitializationServiceTest`
+  のINSERT総数期待値を1207→1208へ更新)。実プロトコルでの検証不足を補うため、
+  `FakeImapServer`によるIMAPワイヤプロトコルの実機テストを`JavaMailMailboxAccessVerifierTest`
+  に追加し、`./gradlew test`で全305件成功を確認した。

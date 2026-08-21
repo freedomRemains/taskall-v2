@@ -483,3 +483,72 @@ AIに確認や対応をお願いし、時間やクレジットを使ってしま
     - **ログイン等、認証まわりの挙動を手動検証する際は、事前に`SecurityConfig`
       (`web/security`パッケージ)を確認し、二段階認証・メール送信を伴う場合は
       サンドボックス環境で完結できない可能性を早めに見積もる。**
+
+### issue #96(PR #97マージ前フォローアップ): GreenMailのGREENMAIL_OPTS誤設定でIMAPサーバが1つも起動していなかった
+
+1. 概要
+
+    - ローカル環境で`docker compose up -d`によりGreenMailを起動し、企業ユーザマイページで
+      メール登録を行ったところ、正しい資格情報・誤った資格情報のいずれでも画面上に一切の
+      変化(エラーメッセージ・成功遷移)が見られず、原因調査を依頼された。
+
+2. 原因
+
+    - `infra/docker/docker-compose.yml`の`GREENMAIL_OPTS`に
+      `-Dgreenmail.setup.test.smtp.imap`という、SMTPとIMAPを`.`で連結した1つの
+      オプションを指定していた。しかしGreenMailの`PropertiesBasedServerSetupBuilder`は
+      `greenmail.setup.test.smtp`・`greenmail.setup.test.imap`という**完全に別々の
+      プロパティキー**としてしか認識しない実装であり、連結した`smtp.imap`はどちらの
+      キーにも一致しない。その結果`serverSetups`が空配列となり、GreenMailは
+      コンテナとしては正常に起動しつつ、**SMTP/IMAPいずれのポートでも一切listenしない**
+      状態になっていた。
+    - IMAPサーバが存在しないため、`JavaMailMailboxAccessVerifier`が接続を試みても
+      常に接続失敗(資格情報の正誤に関わらず同じ失敗)となり、ユーザ報告の症状
+      (両方の資格情報で同じ挙動)と一致した。
+    - 加えて、`JavaMailMailboxAccessVerifier`の既存単体テストは全てMockitoによる
+      モック化されたプロパティ経由のテストのみで、実際のIMAPワイヤプロトコルに対する
+      検証が一切無かったため、この種の設定ミスがテストで検出できない構造だった。
+    - 副次的に、`HTML_PARTS_IN_APROLE`のエラーメッセージ表示部品(HTML_PARTS_ID=1001101)に
+      法人ユーザ(APROLE_ID=1000201)のread権限が漏れており、仮にIMAP接続が失敗して
+      `errMsgKey`が正しく生成されていても、法人ユーザにはエラーメッセージ自体が
+      画面に表示されない状態だった(ゲスト・個人ユーザ・管理者・特権管理者のみ
+      read権限が付与されており、法人ユーザだけ抜けていた)。
+
+3. 対応
+
+    - `docker-compose.yml`の`GREENMAIL_OPTS`を`-Dgreenmail.setup.test.smtp`と
+      `-Dgreenmail.setup.test.imap`の2つに分割し、注意書きのコメントを追加した。
+    - `FakeImapServer`(生ソケットで最小限のIMAPプロトコルに応答するテスト専用クラス)を
+      新規作成し、`JavaMailMailboxAccessVerifierTest`に実プロトコルでの正しい/誤った
+      資格情報双方のログイン結果を検証するテストを追加(モックに頼らず実際の
+      jakarta.mail/Angus Mailクライアントの挙動を検証する)。GreenMailの実際のソース
+      (`PropertiesBasedServerSetupBuilder`、CAPABILITY応答)をGitHub上で確認し、
+      本物のGreenMailと矛盾しない挙動になるようFakeImapServerを調整した。
+    - `HTML_PARTS_IN_APROLE`に法人ユーザ(APROLE_ID=1000201)向けのread権限行を追加し、
+      SQLを再生成、`DbInitializationServiceTest`のINSERT総数期待値を1207→1208へ更新した。
+    - GET `mailAddrRegister.html?errMsgKey=<ID>`への手動リクエストで、`ERR_MSG`テーブルの
+      メッセージがテンプレートに正しく描画されることを個別に確認し、エラー表示の
+      仕組み自体(`errMsgList`パーツ)には別途の不具合が無いことを確認した。
+
+4. 防御策
+
+    - **Dockerコンテナが正常に起動していることと、期待するポートで実際にlistenして
+      いることは別問題である。** `docker compose up -d`が成功しても、アプリ内の
+      環境変数・起動オプションの誤りにより「起動はしているが何も待ち受けていない」
+      状態になり得る。ミドルウェア系コンテナ(GreenMail等)を追加・変更した際は、
+      `docker compose logs`やポートへの実際の接続確認(`nc`/telnet等)で待受確認を
+      行うことが望ましい。
+    - **外部ミドルウェアの起動オプションは「連結指定できる」という思い込みを避け、
+      公式ドキュメント・実装ソースで1オプション1機能かどうかを確認する。**
+      特にGreenMailの`greenmail.setup.test.<protocol>`は本issueで確認した通り、
+      プロトコルごとに個別のフラグが必須であり、連結指定は静かに無視される
+      (エラーにならないため気付きにくい)。
+    - **外部システム連携(IMAP等)を伴うクラスの単体テストは、モックだけに頼らず、
+      実際のワイヤプロトコルに対するテスト(本issueの`FakeImapServer`のような
+      軽量な自前サーバ)も用意しておくと、環境依存の設定ミスによる不具合を
+      コードレベルのテストで検出しやすくなる。**
+    - **新規のHTML_PARTS追加時は、全APROLE(ゲスト/個人ユーザ/法人ユーザ/管理者/
+      特権管理者)に対してHTML_PARTS_IN_APROLEの権限行が過不足なく設定されているか、
+      機械的にチェックする(既存の類似パーツの権限設定と役割一覧を突き合わせる)。**
+      本issueでは法人ユーザ向けのエラーメッセージ表示権限が既存の共通パーツで
+      漏れていたことが、今回の調査で偶然発覚した(本来issue #96以前からの潜在バグ)。
