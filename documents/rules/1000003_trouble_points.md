@@ -439,3 +439,47 @@ AIに確認や対応をお願いし、時間やクレジットを使ってしま
       ローカル環境(CSRF無効)だけでなく、本番相当にCSRFを有効化した状態でのテストも
       検討する。** 本トラブルはローカルでは`_csrf`パラメータ自体が送信されないため
       再現せず、本番でのみ顕在化した典型例。
+
+
+### issue #96: ログイン処理の実体を`myPage.html`のPOSTマッピングだと誤認していた
+
+1. 現象
+
+    - issue #96のマイページ機能改修後、認証済みセッションでの手動E2E検証を行うため、
+      `MAIL_ADDRESS`/`PASSWORD`を`myPage.html`へPOSTしたが、`TaskallV2Controller`には
+      `myPage.html`への`@PostMapping`が存在しないにもかかわらず、実際には302リダイレクト
+      (`?errMsgKey=N`)が返ってきて一見ログイン処理が動いているように見え、混乱した。
+
+2. 原因
+
+    - `HTML_PAGE.txt`上、`myPage`の`SCR_ID_POST`は`0`(POSTハンドラ無し)であり、これは
+      「マイページ自体はDB駆動のScriptElementServiceチェーンとしてはPOSTを扱わない」
+      ことを意味している。
+    - しかし実際のログイン処理は`SecurityConfig`がSpring Securityの`formLogin()`で
+      `loginProcessingUrl(myPage.html)`を明示的に設定しており、Spring Securityの
+      フィルタチェーンが`TaskallV2Controller`のマッピングより先に`myPage.html`への
+      POSTを横取りして`TwoPhaseAuthenticationProvider`による認証処理(一次認証+
+      二段階認証)を行う実装だった。つまりコントローラのマッピング一覧だけを見ても
+      ログイン処理の実体は把握できない。
+
+3. 対応
+
+    - `SecurityConfig`を確認し、ログイン処理はSpring Security側で完結し、一次認証成功時は
+      `TwoFactorRequiredException`経由で二段階認証(パスコードメール送信)へ遷移する
+      仕様であることを確認した。
+    - サンドボックス環境には実メールサーバが無く二段階認証メールの送受信ができないため、
+      本issueでは二段階認証を含む完全なログインE2E検証までは実施せず、未ログイン状態の
+      マイページGETで新規パーツが正常にレンダリングされることの確認と、単体テスト・
+      DB生成SQLの検証のみで代替した(新機能自体の不具合ではなく、既存ログイン機構の
+      検証環境上の制約であることをissue報告時に明記)。
+
+4. 防御策
+
+    - **DB駆動ルーティング(`HTML_PAGE`/`SCR_ID_POST`)とSpring Security側の
+      `formLogin`/`loginProcessingUrl`が同一URLを奪い合うケースがあることに注意する。**
+      `HTML_PAGE`の`SCR_ID_POST=0`は「アプリ独自のスクリプトチェーンとしてはPOSTを
+      扱わない」ことしか意味せず、そのURLへのPOSTがフレームワークレベル
+      (`SecurityConfig`等)で別途処理されていないかも合わせて確認する。
+    - **ログイン等、認証まわりの挙動を手動検証する際は、事前に`SecurityConfig`
+      (`web/security`パッケージ)を確認し、二段階認証・メール送信を伴う場合は
+      サンドボックス環境で完結できない可能性を早めに見積もる。**

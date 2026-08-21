@@ -988,3 +988,68 @@ issue単位で簡潔にまとめます。issueやpull requestの全文を毎回�
   - 修正前のコードに対して同テストを実行し、`SpelEvaluationException`相当の
     アサーション失敗が再現することを確認(回帰テストとして機能することの裏付け)。
   - `./gradlew test`(全テスト)成功。
+
+
+### issue #96: 企業ユーザ用「監視対象メールアドレス」登録機能の実装
+
+- issue: https://github.com/freedomRemains/taskall-v2/issues/96
+- 関連PR: https://github.com/freedomRemains/taskall-v2/pull/97
+- 関連する相対パス:
+  - `src/main/resources/db/data/MAIL_ADDR_IN_ACCNT.txt`（新規テーブル、`TBL_DEF.txt`にも追記）
+  - `src/main/java/com/freedom/taskall_v2/web/service/MailAddrInAccntService.java`
+    （DBアクセス、UPSERT実装）
+  - `src/main/java/com/freedom/taskall_v2/web/service/RegisterMailAddrInAccntService.java`
+    （`ScriptElementService`本体、接続確認→暗号化→UPSERTのオーケストレーション）
+  - `src/main/java/com/freedom/taskall_v2/common/service/mail/`配下
+    （`MailboxAccessVerifier`/`JavaMailMailboxAccessVerifier`、
+    `MailAddrEncryptionService`/`KmsMailAddrEncryptionService`/`LocalMailAddrEncryptionService`）
+  - `src/main/java/com/freedom/taskall_v2/common/config/MailAddrVerificationProperties.java`,
+    `MailAddrEncryptionProperties.java`, `KmsClientConfig.java`
+  - `src/main/resources/templates/parts/10200_mailAddrStatus.html`,
+    `parts/common/20200_commonMailAddrStatus.html`（マイページの登録状況表示）
+  - `src/main/resources/templates/parts/10210_mailAddrRegisterInput.html`,
+    `parts/common/20210_commonMailAddrRegisterInput.html`（登録/変更フォーム）
+- 決定事項・要点:
+  - 監視対象メールアドレスは、当初案の「ACCNTへの直接追加」ではなく専用テーブル
+    `MAIL_ADDR_IN_ACCNT`（`ACCNT_ID`にUNIQUE制約、1アカウント1行）で管理する方式に
+    ユーザー自身が設計を修正した(初回issueレビュー時にテーブル分離を助言、ユーザーが
+    反映)。
+  - メールサーバ接続情報は「平文認証の自社メールサーバ」または「Gmail」のみを前提と
+    する(ユーザーの明示的な指示)。ドメインが`gmail.com`/`googlemail.com`ならIMAPS
+    (`imap.gmail.com:993`)、それ以外は`taskall.mail-addr-verification`設定の平文IMAP
+    ホスト/ポートに接続する`JavaMailMailboxAccessVerifier`で実装。契約企業へは
+    「Gmailアカウントを新設し、案件・人材メールの振り分け設定を行ってもらう」運用を
+    前提とする(企業側が自社メールアドレスを直接見せたくないという意図)。
+  - パスワードの暗号化は、本番はAWS KMS(`KmsMailAddrEncryptionService`)、
+    ローカル等KMS未設定時はBase64フォールバック(`LocalMailAddrEncryptionService`)の
+    2実装を`taskall.mail-addr-encryption.enabled`の`@ConditionalOnProperty`で切替える
+    方式とした(既存の`AwsSsmParameterFetcher`等と同様、本番/ローカルでの実装差し替え
+    パターンを踏襲)。
+  - 再登録時の仕様(ユーザー指示): 接続確認に成功した場合のみ`MAIL_ADDR_IN_ACCNT`を
+    UPDATE(VERSION+1)する。接続確認に失敗した場合は既存の値を変更せず、
+    エラーメッセージ付きで登録フォームへリダイレクトする。
+  - 当初検討していた「登録成功時のマイページ通知表示」機能は、myPageの
+    `HTML_PARTS`構成に汎用`noticeList`の`PARTS_ITEM`が無く(TOPページのみ対応)、
+    追加するとissue #96のスコープを超えるため見送った(ユーザー自身が「分割する」と
+    明言していた方針に合わせ、スコープを絞った判断)。
+  - `HTML_PAGE.SCR_ID_POST`等のDESTINATION系カラムは、`ScriptElementService`が
+    自身の出力JSONで`respKind`/`destination`を返す場合は実質使われない(dead/
+    fallback-only)ことを`RequestHandlingService`/`ScriptExecutionService`のコードから
+    再確認した(signUp/passwordReset系ページと同じパターン)。
+  - ログイン処理は`SecurityConfig`のSpring Security `formLogin`が`myPage.html`への
+    POSTを`loginProcessingUrl`として横取りする実装であり(`TwoPhaseAuthenticationProvider`
+    による二段階認証)、`TaskallV2Controller`に`@PostMapping("myPage.html")`は存在しない。
+    そのため`HTML_PAGE.txt`上は`myPage`の`SCR_ID_POST=0`だが、実際はSpring Security側で
+    POSTが処理される。今後、認証済みセッションでの手動検証を行う際はこの点に留意する
+    (詳細は`1000003_trouble_points.md`のissue #96節を参照)。
+- 検証結果:
+  - `./gradlew compileJava`成功。
+  - `DbSchemaSqlGeneratorRealDataTest`実行によりSQLを再生成し、`MAIL_ADDR_IN_ACCNT`の
+    CREATE文(UNIQUE制約含む)を確認。
+  - `taskallv2.db`削除後の`./gradlew test`で全302件成功(クリーンなDBブートストラップ)。
+  - `DbInitializationServiceTest`のSQL実行回数期待値を、新規追加行数(36件のINSERT+
+    1テーブル分のDROP/CREATE)に合わせて更新。
+  - アプリをローカル起動し、未ログイン状態のマイページGETが新規パーツを含めて
+    正常にレンダリングされることを確認。二段階認証(メール送信)を伴うログインの
+    完全なE2E検証は、サンドボックス環境に実メールサーバが無いため未実施
+    (新機能自体のバグではなく、既存ログイン機構の検証環境上の制約)。
