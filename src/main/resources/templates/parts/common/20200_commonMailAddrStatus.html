@@ -1,0 +1,26 @@
+<!--/* メールアドレス登録状況領域(issue #96)。マイページに、監視対象メールアドレスの登録有無に応じて
+       「メールアドレス登録」ボタン(未登録時)、もしくは登録済みメールアドレスを表示する
+       1行のテーブルと「メールアドレス変更(再登録)」ボタン(登録済み時)のいずれかを表示する。
+       パスワードは表示しない(暗号化済みでありDB上にも平文は保持していない)。 */-->
+<div xmlns:th="http://www.thymeleaf.org" th:fragment="body" class="1001901"
+     th:with="mailAddrInAccntList=${T(com.freedom.taskall_v2.web.util.HtmlPageItemUtil).findRecords(htmlPage, 'mailAddrInAccnt')}">
+    <div class="p-2">
+        <label class="form-label fw-bold">メールアドレス登録状況</label>
+
+        <div th:if="${mailAddrInAccntList.isEmpty()}">
+            <a class="btn btn-outline-primary" href="/taskall-v2/service/mailAddrRegister.html">メールアドレス登録</a>
+        </div>
+
+        <div th:unless="${mailAddrInAccntList.isEmpty()}" class="table-responsive">
+            <table class="table table-bordered w-auto">
+                <tbody>
+                    <tr th:each="mailAddrInAccnt : ${mailAddrInAccntList}">
+                        <th class="col-5">登録済みメールアドレス</th>
+                        <td class="col-7" th:text="${mailAddrInAccnt.MAIL_ADDR}">mail@example.com</td>
+                    </tr>
+                </tbody>
+            </table>
+            <a class="btn btn-outline-primary" href="/taskall-v2/service/mailAddrRegister.html">メールアドレス変更(再登録)</a>
+        </div>
+    </div>
+</div>

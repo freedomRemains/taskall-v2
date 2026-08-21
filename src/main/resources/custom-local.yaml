@@ -26,3 +26,16 @@ taskall:
   recaptcha:
     site-key: 6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI
     secret-key: 6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe
+
+  # 監視対象メールアドレス(issue #96)の接続確認先(平文認証の自社メールサーバ)。
+  # ローカル環境ではMailHog等のダミーIMAPサーバは用意していないため、実在のメールサーバは
+  # 別途各自の開発環境に合わせて設定すること。
+  mail-addr-verification:
+    plain-host: localhost
+    plain-port: 143
+
+  # 監視対象メールアドレスのパスワード暗号化(issue #96)。
+  # ローカル環境ではAWS認証情報が無くても起動できるよう、明示的にKMSを無効化しておく
+  # (デフォルト値もfalseだが、意図を明確にするため明示的に記載する)。
+  mail-addr-encryption:
+    enabled: false
