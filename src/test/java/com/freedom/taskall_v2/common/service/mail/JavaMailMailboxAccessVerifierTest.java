@@ -52,4 +52,34 @@ class JavaMailMailboxAccessVerifierTest {
 
         assertThat(result).isFalse();
     }
+
+    @Test
+    void 実際のIMAPサーバへの正しい認証情報でのログインはtrueを返すこと() throws Exception {
+
+        // MockitoでMailboxAccessVerifierの内部をモック化するだけでは、実際のIMAP
+        // ワイヤプロトコル(CAPABILITY/LOGIN)を通した検証ができていなかった(issue #96の
+        // ユーザ報告により判明)。FakeImapServerで最小限のIMAP応答を返す実サーバを立て、
+        // 本物のjakarta.mail(Angus Mail)実装を通して接続確認する
+        try (FakeImapServer fakeImapServer = new FakeImapServer("user@example.co.jp", "correctPassword")) {
+            when(mailAddrVerificationProperties.getPlainHost()).thenReturn("localhost");
+            when(mailAddrVerificationProperties.getPlainPort()).thenReturn(fakeImapServer.getPort());
+
+            boolean result = javaMailMailboxAccessVerifier.canAccess("user@example.co.jp", "correctPassword");
+
+            assertThat(result).isTrue();
+        }
+    }
+
+    @Test
+    void 実際のIMAPサーバへの誤った認証情報でのログインはfalseを返すこと() throws Exception {
+
+        try (FakeImapServer fakeImapServer = new FakeImapServer("user@example.co.jp", "correctPassword")) {
+            when(mailAddrVerificationProperties.getPlainHost()).thenReturn("localhost");
+            when(mailAddrVerificationProperties.getPlainPort()).thenReturn(fakeImapServer.getPort());
+
+            boolean result = javaMailMailboxAccessVerifier.canAccess("user@example.co.jp", "wrongPassword");
+
+            assertThat(result).isFalse();
+        }
+    }
 }

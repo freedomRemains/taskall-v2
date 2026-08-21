@@ -35,9 +35,14 @@ services:
       # デフォルト設定(-Dgreenmail.auth.disabled)を上書きし、実際に認証を行わせる。
       # テスト用アカウント(mailaddrtest@localhost / mailaddrtest)を1件作成し、
       # ログインIDはローカルパートではなくメールアドレス全体とする
-      # (taskall-v2側のMAIL_ADDRESSはメールアドレス形式で送信されるため)
+      # (taskall-v2側のMAIL_ADDRESSはメールアドレス形式で送信されるため)。
+      # 注意: 「-Dgreenmail.setup.test.<protocol>」は1プロトコル1オプションが必須の仕様であり、
+      # 「smtp.imap」のように連結指定するとどちらの起動オプションとしても認識されず
+      # サーバが1つも起動しない(GreenMailStandaloneRunnerの実装で確認)。必ずプロトコルごとに
+      # オプションを分けて指定すること
       GREENMAIL_OPTS: >-
-        -Dgreenmail.setup.test.smtp.imap
+        -Dgreenmail.setup.test.smtp
+        -Dgreenmail.setup.test.imap
         -Dgreenmail.hostname=0.0.0.0
         -Dgreenmail.users=mailaddrtest:mailaddrtest@localhost
         -Dgreenmail.users.login=email
